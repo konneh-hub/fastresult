@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>API Test</title>
+</head>
+<body>
+  <h1>SRMS API Test</h1>
+  
+  <button onclick="testRegister()">Test Register</button>
+  <button onclick="testLogin()">Test Login</button>
+  
+  <pre id="output"></pre>
+  
+  <script>
+    const output = document.getElementById('output');
+    let email = 'testuser' + Date.now() + '@test.com';
+    
+    async function testRegister() {
+      output.innerHTML = 'Testing registration...\n';
+      try {
+        const res = await fetch('http://localhost:4000/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password: 'Pass123!@#',
+            role: 'student'
+          })
+        });
+        const data = await res.json();
+        output.innerHTML += `Status: ${res.status}\n`;
+        output.innerHTML += `Response: ${JSON.stringify(data, null, 2)}\n`;
+      } catch (e) {
+        output.innerHTML += `Error: ${e.message}\n`;
+      }
+    }
+    
+    async function testLogin() {
+      output.innerHTML = 'Testing login...\n';
+      try {
+        const res = await fetch('http://localhost:4000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password: 'Pass123!@#'
+          })
+        });
+        const data = await res.json();
+        output.innerHTML += `Status: ${res.status}\n`;
+        output.innerHTML += `Response: ${JSON.stringify(data, null, 2)}\n`;
+      } catch (e) {
+        output.innerHTML += `Error: ${e.message}\n`;
+      }
+    }
+  </script>
+</body>
+</html>

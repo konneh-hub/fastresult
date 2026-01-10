@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  backend:
+    build: ./backend
+    command: npm run dev
+    environment:
+      DB_HOST: fastresultdb
+      DB_PORT: 3306
+      DB_USER: fastresult
+      DB_PASS: Fastresult@15590
+      DB_NAME: fastresultdb
+      JWT_SECRET: supersecret
+    volumes:
+      - ./backend:/app
+    ports:
+      - "4000:4000"
