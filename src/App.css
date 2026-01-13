@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .App {
   text-align: center;
 }
@@ -36,3 +37,9 @@
     transform: rotate(360deg);
   }
 }
+=======
+.navInfo { margin-right: 12px; }
+.logoutButton { margin-left: 12px; }
+.resultsTable { margin-top: 12px; }
+textarea.payload { font-family: monospace; }
+>>>>>>> 18cf5e0 (latest changes)
