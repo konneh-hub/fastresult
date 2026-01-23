@@ -1,325 +1,179 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import "./Home.css";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import "./AuthPages.css";
 
 export default function Home() {
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => { if (window.innerWidth > 980) setMenuOpen(false); };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   return (
-    <div className="home">
-      {/* ===== TOP NAV ===== */}
-      <nav className="nav">
-        <div className="nav-inner">
-          <div className="brand">ResultApp</div>
-
-          <div id="nav-links" className={`nav-links ${menuOpen ? "open" : ""}`}>
-            <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
-            <a href="#how" onClick={() => setMenuOpen(false)}>How it works</a>
-            <a href="#roles" onClick={() => setMenuOpen(false)}>Roles</a>
+    <div className="home-page">
+      <nav className="navbar">
+        <div className="navbar-container">
+          <div className="navbar-brand">
+            <div className="brand-icon">📚</div>
+            <span className="brand-text">FastResult</span>
           </div>
-
-          <div className="nav-controls">
-            <Link to="/register" className="nav-cta">Register</Link>
-            <button
-              className={`nav-toggle ${menuOpen ? "open" : ""}`}
-              aria-label="Toggle menu"
-              aria-expanded={menuOpen ? "true" : "false"}
-              aria-controls="nav-links"
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
-              <span />
-              <span />
-              <span />
-            </button>
+          <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)}>
+            ☰
+          </button>
+          <div className={`navbar-links ${menuOpen ? "active" : ""}`}>
+            <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+            <a href="#roles" onClick={() => setMenuOpen(false)}>Institutions</a>
+            <a href="#about" onClick={() => setMenuOpen(false)}>About</a>
+            <Link to="/login" className="nav-login-btn">Login</Link>
           </div>
         </div>
       </nav>
 
-      {/* ===== HERO ===== */}
-      <header className="hero">
-        <div className="hero-inner">
+      <section className="hero-section">
+        <div className="hero-content">
           <div className="hero-text">
-            <p className="badge">Student Result Management System</p>
-            <h1>Manage results securely. Publish faster. Reduce errors.</h1>
-            <p className="sub">
-              A centralized platform for universities and colleges to upload,
-              review, approve, and publish results with role-based access.
+            <h1 className="hero-title">Academic Results Management</h1>
+            <p className="hero-subtitle">
+              Secure, efficient, and transparent result processing for educational institutions
             </p>
-
-            <div className="hero-actions">
-              <Link to="/register" className="btn btn-primary">
-                Register
-              </Link>
-              <Link to="/login" className="btn btn-secondary">
-                Get Started
-              </Link>
-              <Link to="/dashboard" className="btn btn-secondary">
-                Go to Dashboard
-              </Link>
-            </div>
-
-            <div className="hero-points">
-              <div className="point">
-                <span className="dot" />
-                Role-based access control
-              </div>
-              <div className="point">
-                <span className="dot" />
-                Approval workflow (HOD → Dean → Exam Officer)
-              </div>
-              <div className="point">
-                <span className="dot" />
-                Student portal for result viewing
-              </div>
-            </div>
-          </div>
-
-          <div className="hero-card">
-            <div className="card-top">
-              <div className="card-title">Quick Overview</div>
-              <div className="card-sub">What you can do inside ResultApp</div>
-            </div>
-
-            <div className="mini-list">
-              <div className="mini-item">
-                <span className="mini-icon">✓</span>
-                Upload scores per course
-              </div>
-              <div className="mini-item">
-                <span className="mini-icon">✓</span>
-                Validate & reduce grading errors
-              </div>
-              <div className="mini-item">
-                <span className="mini-icon">✓</span>
-                Generate transcripts / slips (optional)
-              </div>
-              <div className="mini-item">
-                <span className="mini-icon">✓</span>
-                Publish to student portal after approval
-              </div>
-            </div>
-
-
-          </div>
-        </div>
-      </header>
-
-      {/* ===== TRUST / STATS ===== */}
-      <section className="stats">
-        <div className="stats-inner">
-          <div className="stat">
-            <div className="stat-number">Secure</div>
-            <div className="stat-label">Authentication & permissions</div>
-          </div>
-          <div className="stat">
-            <div className="stat-number">Fast</div>
-            <div className="stat-label">Upload → approval → publish</div>
-          </div>
-          <div className="stat">
-            <div className="stat-number">Accurate</div>
-            <div className="stat-label">Validation to reduce mistakes</div>
-          </div>
-          <div className="stat">
-            <div className="stat-number">Clear</div>
-            <div className="stat-label">Audit trail & accountability</div>
+            <button className="cta-button" onClick={() => navigate("/login")}>
+              Get Started
+            </button>
           </div>
         </div>
       </section>
 
-      {/* ===== FEATURES ===== */}
-      <section className="section" id="features">
-        <div className="section-inner">
-          <div className="section-head">
-            <h2>Features built for academic workflows</h2>
+      <section className="features-section" id="features">
+        <div className="section-header">
+          <h2>Key Features</h2>
+          <p>Everything needed for secure result management</p>
+        </div>
+        <div className="features-grid">
+          <div className="feature-card">
+            <div className="feature-icon">🔐</div>
+            <h3>Secure Access</h3>
+            <p>Role-based permissions ensure only authorized users access sensitive data</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">✅</div>
+            <h3>Multi-Level Approval</h3>
+            <p>Streamlined approval workflows from creation to publication</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">📥</div>
+            <h3>Easy Upload</h3>
+            <p>Intuitive interface for managing academic results</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">📈</div>
+            <h3>Analytics</h3>
+            <p>Track and monitor result processing metrics</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">⚙️</div>
+            <h3>Admin Controls</h3>
+            <p>Comprehensive administrative tools for system management</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon">🛡️</div>
+            <h3>Data Integrity</h3>
+            <p>Audit trails and verification systems ensure accuracy</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="roles-section" id="roles">
+        <div className="section-header">
+          <h2>Built for Educational Institutions</h2>
+          <p>Designed for every stakeholder in the academic ecosystem</p>
+        </div>
+        <div className="roles-grid">
+          <div className="role-card">
+            <div className="role-icon">👨‍💼</div>
+            <h3>Admin</h3>
+            <p>System oversight and user management</p>
+          </div>
+          <div className="role-card">
+            <div className="role-icon">🎓</div>
+            <h3>Dean</h3>
+            <p>Faculty-level approval of results</p>
+          </div>
+          <div className="role-card">
+            <div className="role-icon">📋</div>
+            <h3>HOD</h3>
+            <p>Department management and coordination</p>
+          </div>
+          <div className="role-card">
+            <div className="role-icon">📝</div>
+            <h3>Exam Officer</h3>
+            <p>Result compilation and administration</p>
+          </div>
+          <div className="role-card">
+            <div className="role-icon">👨‍🏫</div>
+            <h3>Lecturer</h3>
+            <p>Submit grades securely</p>
+          </div>
+          <div className="role-card">
+            <div className="role-icon">👨‍🎓</div>
+            <h3>Student</h3>
+            <p>View results and transcripts</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="about-section" id="about">
+        <div className="about-content">
+          <div className="about-text">
+            <h2>About FastResult</h2>
             <p>
-              Everything you need to manage results from entry to final
-              publication, without confusion.
+              FastResult is a modern academic results management platform designed to streamline 
+              how educational institutions handle, approve, and publish student results.
+            </p>
+            <p>
+              From lecturers submitting grades to students accessing results, our system 
+              ensures every step is secure, efficient, and audit-compliant.
             </p>
           </div>
+        </div>
+      </section>
 
-          <div className="grid">
-            <div className="card">
-              <h3>Role-Based Access</h3>
-              <p>
-                Each user only sees the tools they need: Admin, Lecturer, HOD,
-                Dean, Exam Officer, and Student.
-              </p>
-            </div>
-
-            <div className="card">
-              <h3>Approval Workflow</h3>
-              <p>
-                Results move through review and approval stages before
-                publication to students.
-              </p>
-            </div>
-
-            <div className="card">
-              <h3>Result Validation</h3>
-              <p>
-                Detect missing grades, invalid score ranges, duplicates, or
-                mismatched course entries.
-              </p>
-            </div>
-
-            <div className="card">
-              <h3>Audit Log</h3>
-              <p>
-                Track who uploaded, edited, approved, or published results — for
-                accountability.
-              </p>
-            </div>
-
-            <div className="card">
-              <h3>Student Portal</h3>
-              <p>
-                Students view their results safely, with clear semester and
-                course breakdown.
-              </p>
-            </div>
-
-            <div className="card">
-              <h3>Reports & Exports</h3>
-              <p>
-                Generate department summaries, class sheets, and exports for
-                printing or archiving.
-              </p>
-            </div>
+      <section className="cta-section">
+        <div className="cta-content">
+          <h2>Ready to streamline results management?</h2>
+          <p>Join institutions worldwide that trust FastResult</p>
+          <div className="cta-buttons">
+            <button className="btn btn-primary" onClick={() => navigate("/login")}>
+              Sign In
+            </button>
+            <button className="btn btn-secondary" onClick={() => navigate("/register")}>
+              Create Account
+            </button>
           </div>
         </div>
       </section>
 
-      {/* ===== HOW IT WORKS ===== */}
-      <section className="section alt" id="how">
-        <div className="section-inner">
-          <div className="section-head">
-            <h2>How it works</h2>
-            <p>A simple flow that mirrors real university procedures.</p>
-          </div>
-
-          <div className="steps">
-            <div className="step">
-              <div className="step-no">1</div>
-              <div>
-                <h3>Lecturer uploads scores</h3>
-                <p>Enter or import results by course and class list.</p>
-              </div>
-            </div>
-
-            <div className="step">
-              <div className="step-no">2</div>
-              <div>
-                <h3>Department review (HOD)</h3>
-                <p>Verify correctness, completeness, and course alignment.</p>
-              </div>
-            </div>
-
-            <div className="step">
-              <div className="step-no">3</div>
-              <div>
-                <h3>Faculty approval (Dean)</h3>
-                <p>Confirm readiness before publishing results.</p>
-              </div>
-            </div>
-
-            <div className="step">
-              <div className="step-no">4</div>
-              <div>
-                <h3>Publish (Exam Officer)</h3>
-                <p>Release results to the student portal with an audit trail.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== ROLES ===== */}
-      <section className="section" id="roles">
-        <div className="section-inner">
-          <div className="section-head">
-            <h2>Designed for every role</h2>
-            <p>Clear responsibilities for smooth operations.</p>
-          </div>
-
-          <div className="roles">
-            <div className="role">
-              <h3>Admin</h3>
-              <p>Manage users, departments, programs, courses, and settings.</p>
-            </div>
-            <div className="role">
-              <h3>Lecturer</h3>
-              <p>Upload and manage scores for assigned courses.</p>
-            </div>
-            <div className="role">
-              <h3>HOD</h3>
-              <p>Review departmental results and request corrections.</p>
-            </div>
-            <div className="role">
-              <h3>Dean</h3>
-              <p>Approve faculty results for publication.</p>
-            </div>
-            <div className="role">
-              <h3>Exam Officer</h3>
-              <p>Final publishing, reports, and administrative checks.</p>
-            </div>
-            <div className="role">
-              <h3>Student</h3>
-              <p>View personal results securely after publication.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== FINAL CTA ===== */}
-      <section className="cta">
-        <div className="cta-inner">
-          <h2>Ready to manage results properly?</h2>
-          <p>Login to start uploading, reviewing, or viewing results.</p>
-          <div className="cta-actions">
-            <Link to="/login" className="btn btn-primary">
-              Login
-            </Link>
-            <Link to="/register" className="btn btn-secondary">
-              Register
-            </Link>
-            <Link to="/dashboard" className="btn btn-secondary">
-              Dashboard
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== FOOTER ===== */}
       <footer className="footer">
-        <div className="footer-inner">
-          <div className="footer-left">
-            <div className="footer-brand">ResultApp</div>
-            <p>Secure academic result management for institutions.</p>
+        <div className="footer-container">
+          <div className="footer-section">
+            <h4>FastResult</h4>
+            <p>Academic Results Management</p>
           </div>
-
-          <div className="footer-right">
-            <a href="#features">Features</a>
-            <a href="#how">How it works</a>
-            <a href="#roles">Roles</a>
-            <a href="/privacy">Privacy Policy</a>
-            <a href="/terms">Terms &amp; Conditions</a>
+          <div className="footer-section">
+            <h4>Product</h4>
+            <ul>
+              <li><a href="#features">Features</a></li>
+              <li><a href="#roles">Institutions</a></li>
+              <li><a href="#about">About</a></li>
+            </ul>
           </div>
-
-          <div className="footer-contact">
-            <strong>Support & Contact Info</strong>
-            <div>📧 Email: <a href="mailto:support@yourdomain.com">support@yourdomain.com</a></div>
-            <div>📞 Phone: +232 xxx xxx xxx</div>
+          <div className="footer-section">
+            <h4>Legal</h4>
+            <ul>
+              <li><a href="#">Privacy</a></li>
+              <li><a href="#">Terms</a></li>
+              <li><a href="#">Contact</a></li>
+            </ul>
           </div>
         </div>
-
         <div className="footer-bottom">
-          © {new Date().getFullYear()} ResultApp. All rights reserved.
+          <p>&copy; 2024 FastResult. All rights reserved.</p>
         </div>
       </footer>
     </div>

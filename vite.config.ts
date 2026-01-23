@@ -7,12 +7,9 @@ export default defineConfig({
     include: ['react', 'react-dom', 'react-router-dom', 'axios']
   },
   server: {
-    // listen on all network interfaces so the host name can be used
-    host: true,
+    host: 'localhost',
     port: 5173,
-    hmr: {
-      host: 'fastresult'
-    }
+    strictPort: true
   },
   build: {
     rollupOptions: {

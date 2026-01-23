@@ -1,383 +1,446 @@
-import React, { useMemo, useState, useRef, useEffect } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import "./Register.css";
+import api from "../api";
+import { otpService } from "../services/otpService";
+import "./AuthPages.css";
 
 export default function Register() {
   const navigate = useNavigate();
-
-  // Self-registration is now restricted to lecturers only
-  const [role] = useState("lecturer");
-  const [fullName, setFullName] = useState("");
+  const [currentStep, setCurrentStep] = useState(1);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState("student");
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  // common optional fields
-  const [phone, setPhone] = useState("");
-
-  // student fields
   const [matricNo, setMatricNo] = useState("");
+  const [faculty, setFaculty] = useState("");
   const [department, setDepartment] = useState("");
   const [program, setProgram] = useState("");
   const [level, setLevel] = useState("");
 
-  // selections populated from backend
-  const [faculties, setFaculties] = useState<Array<any>>([]);
-  const [departments, setDepartments] = useState<Array<any>>([]);
-  const [programs, setPrograms] = useState<Array<any>>([]);
+  // Sample data for dropdowns
+  const faculties = [
+    "Faculty of Science",
+    "Faculty of Engineering",
+    "Faculty of Arts",
+    "Faculty of Law",
+    "Faculty of Medicine",
+    "Faculty of Business"
+  ];
 
-  // IDs expected by backend (use numeric ids when available)
-  const [facultyId, setFacultyId] = useState<number | "">("");
-  const [departmentId, setDepartmentId] = useState<number | "">("");
-  const [programId, setProgramId] = useState<number | "">("");
-
-  // staff fields
-  const [staffId, setStaffId] = useState("");
-  const [faculty, setFaculty] = useState("");
-
-  // admin/staff approval code (optional)
-  const [accessCode, setAccessCode] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const roleRef = useRef<HTMLSelectElement | null>(null);
-
-  useEffect(() => { roleRef.current?.focus(); }, []);
-
-  useEffect(() => {
-    // load faculties for selects
-    (async () => {
-      try {
-        const res = await fetch('http://localhost:4000/api/faculties');
-        const data = await res.json();
-        setFaculties(data);
-      } catch (e) {
-        // ignore
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    // when faculty changes, load departments
-    (async () => {
-      if (!facultyId) {
-        setDepartments([]);
-        setPrograms([]);
-        return;
-      }
-      try {
-        const res = await fetch(`http://localhost:4000/api/departments?facultyId=${facultyId}`);
-        const data = await res.json();
-        setDepartments(data);
-      } catch (e) {
-        setDepartments([]);
-      }
-    })();
-  }, [facultyId]);
-
-  useEffect(() => {
-    // when department changes, load programs
-    (async () => {
-      if (!departmentId) {
-        setPrograms([]);
-        return;
-      }
-      try {
-        const res = await fetch(`http://localhost:4000/api/programs?departmentId=${departmentId}`);
-        const data = await res.json();
-        setPrograms(data);
-      } catch (e) {
-        setPrograms([]);
-      }
-    })();
-  }, [departmentId]);
-  const isStaff = useMemo(() => {
-    return ["lecturer", "hod", "dean", "exam_officer", "admin"].includes(role);
-  }, [role]);
-
-  const validate = () => {
-    if (!fullName.trim()) return "Full name is required.";
-    if (!email.trim()) return "Email is required.";
-    if (password.length < 6) return "Password must be at least 6 characters.";
-    if (password !== confirmPassword) return "Passwords do not match.";
-
-    // This registration page is only for staff lecturers
-    if (!staffId.trim()) return "Staff ID is required for staff registration.";
-    if (!faculty.trim()) return "Faculty/School is required for staff registration.";
-
-    return "";
+  const departments = {
+    "Faculty of Science": ["Computer Science", "Mathematics", "Physics", "Chemistry"],
+    "Faculty of Engineering": ["Civil Engineering", "Electrical Engineering", "Mechanical Engineering"],
+    "Faculty of Arts": ["History", "English", "Philosophy", "Sociology"],
+    "Faculty of Law": ["Public Law", "Private Law"],
+    "Faculty of Medicine": ["Medicine", "Nursing", "Pharmacy"],
+    "Faculty of Business": ["Accounting", "Management", "Economics"]
   };
 
-  const submit = async (e: React.FormEvent) => {
+  const programs = ["Degree", "Diploma", "Ordinary Diploma", "Certificate"];
+  const levels = ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"];
+
+  const handleNextStep = () => {
+    setError("");
+    if (currentStep === 1) {
+      if (!email || role !== "student") {
+        setError("Only students can self-register. Staff accounts are created by administration.");
+        return;
+      }
+      setCurrentStep(2);
+    } else if (currentStep === 2) {
+      if (!fullName || !password || password !== confirmPassword) {
+        setError("Please fill all fields and passwords must match");
+        return;
+      }
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters");
+        return;
+      }
+      setCurrentStep(3);
+    } else if (currentStep === 3) {
+      // Academic fields are optional - can be filled in later
+      setCurrentStep(4);
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      setError("");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    const msg = validate();
-    if (msg) {
-      setError(msg);
-      return;
-    }
-
     setLoading(true);
+
     try {
+      if (!email || !password || !fullName) {
+        setError("Please complete all required fields");
+        setLoading(false);
+        return;
+      }
+
+      // Build registration payload for student
       const payload: any = {
-        role,
+        role: "student",
         fullName,
         email,
         password,
         phone: phone || undefined,
-
-          // student (backend expects programId as number and matricNo)
-        matricNo: role === "student" ? matricNo : undefined,
-        programId: role === "student" && programId ? Number(programId) : undefined,
-        level: role === "student" ? level : undefined,
-
-        // staff/admin
-        staffId: isStaff ? staffId : undefined,
-        faculty: isStaff ? faculty : undefined,
-        accessCode: role === "admin" ? accessCode : undefined,
-
-        // selections
-        facultyId: facultyId ? Number(facultyId) : undefined,
-        departmentId: departmentId ? Number(departmentId) : undefined,
+        matricNo: matricNo || undefined,
+        faculty: faculty || undefined,
+        department: department || undefined,
+        program: program || undefined,
+        level: level || undefined
       };
 
-      const res = await axios.post(
-        "http://localhost:4000/api/auth/register",
-        payload,
-        { headers: { "Content-Type": "application/json" } }
-      );
+      // Call backend registration endpoint
+      const response = await api.post("/auth/register", payload);
 
-      // If backend returns token/user immediately, store it:
-      if (res.data?.token) localStorage.setItem("token", res.data.token);
-      if (res.data?.user) localStorage.setItem("user", JSON.stringify(res.data.user));
+      if (response.status === 201 || response.status === 200) {
+        console.log("✅ Registration successful:", response.data);
+        
+        // Store email for OTP verification
+        localStorage.setItem("registrationEmail", email);
+        localStorage.setItem("registrationData", JSON.stringify({
+          fullName,
+          email,
+          role: "student"
+        }));
 
-      // Choose where you want to go after register
-      navigate("/login");
+        // Redirect to OTP verification page
+        setTimeout(() => {
+          navigate("/otp-verification", { 
+            state: { 
+              email, 
+              isNewRegistration: true,
+              requiresOTP: response.data.requiresVerification || true
+            } 
+          });
+        }, 500);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.");
+      const errorMessage = err.response?.data?.message || "Registration failed. Please try again.";
+      setError(errorMessage);
+      console.error("Registration error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="reg-page">
-      <div className="reg-card">
-        <div className="reg-header">
-          <h1>ResultApp</h1>
-          <p>Create your account to access the SRMS</p>
+    <div className="register-page">
+      <div className="register-container">
+      <div className="progress-bar">
+          <div className={`progress-step ${currentStep >= 1 ? "active" : ""} ${currentStep > 1 ? "completed" : ""}`}>
+            <div className="progress-circle">{currentStep > 1 ? "✓" : "1"}</div>
+            <span className="progress-label">Account</span>
+          </div>
+          <div className={`progress-step ${currentStep >= 2 ? "active" : ""} ${currentStep > 2 ? "completed" : ""}`}>
+            <div className="progress-circle">{currentStep > 2 ? "✓" : "2"}</div>
+            <span className="progress-label">Personal</span>
+          </div>
+          <div className={`progress-step ${currentStep >= 3 ? "active" : ""} ${currentStep > 3 ? "completed" : ""}`}>
+            <div className="progress-circle">{currentStep > 3 ? "✓" : "3"}</div>
+            <span className="progress-label">Academic</span>
+          </div>
+          <div className={`progress-step ${currentStep >= 4 ? "active" : ""}`}>
+            <div className="progress-circle">4</div>
+            <span className="progress-label">Review</span>
+          </div>
         </div>
 
-        <form className="reg-form" onSubmit={submit}>
-          <div className="reg-section-title">Lecturer registration</div>
-          <div className="reg-hint">Only lecturers may self-register here. Students and other staff accounts must be created by an administrator (e.g., Dean).</div>
+        <div className="register-form">
+          <form onSubmit={handleSubmit}>
+            {error && (
+              <div style={{
+                background: "#FEE2E2",
+                color: "#991B1B",
+                padding: "0.75rem",
+                borderRadius: "4px",
+                marginBottom: "1rem",
+                fontSize: "0.875rem"
+              }}>
+                {error}
+              </div>
+            )}
 
-          {error && <div className="reg-error" role="alert">{error}</div>}
+            {currentStep === 1 && (
+              <>
+                <h2>Student Registration</h2>
+                <p style={{ color: "#64748B", marginBottom: "1.5rem" }}>
+                  Create your student account
+                </p>
 
-          {/* Step 2: common fields */}
-          <div className="reg-section-title">Account details</div>
+                <div className="info-box" style={{ background: "#DBEAFE", borderLeft: "4px solid #0284C7" }}>
+                  <strong style={{ color: "#075985" }}>ℹ Student accounts require verification before activation.</strong>
+                  <p style={{ marginTop: "0.5rem", color: "#075985", fontSize: "0.875rem" }}>
+                    Staff accounts are created by the university administration.
+                  </p>
+                </div>
 
-          <div className="reg-grid">
-            <div className="reg-group">
-              <label htmlFor="fullName">Full name</label>
-              <input
-                id="fullName"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Enter full name"
-                required
-              />
-            </div>
+                <div className="form-group">
+                  <label htmlFor="email">Email Address *</label>
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="your.email@institution.edu"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
+            )}
 
-            <div className="reg-group">
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                required
-                autoComplete="username"
-              />
-            </div>
+            {currentStep === 2 && (
+              <>
+                <h2>Personal Information</h2>
+                <p style={{ color: "#64748B", marginBottom: "1.5rem" }}>
+                  Please provide your details
+                </p>
 
-            <div className="reg-group">
-              <label htmlFor="phone">Phone (optional)</label>
-              <input
-                id="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+232 ..."
-              />
-            </div>
-          </div>
+                <div className="form-group">
+                  <label htmlFor="fullName">Full Name</label>
+                  <input
+                    id="fullName"
+                    type="text"
+                    placeholder="Your Full Name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                </div>
 
-          <div className="reg-grid">
-            <div className="reg-group">
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create password"
-                required
-                autoComplete="new-password"
-              />
-            </div>
+                <div className="form-group">
+                  <label htmlFor="phone">Phone Number (Optional)</label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    placeholder="+232 xxx xxx xxx"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
 
-            <div className="reg-group">
-              <label htmlFor="confirm">Confirm password</label>
-              <input
-                id="confirm"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat password"
-                required
-                autoComplete="new-password"
-              />
-            </div>
-          </div>
+                <div className="form-group">
+                  <label htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
 
-          {/* Student fields */}
-          {role === "student" && (
-            <>
-              <div className="reg-section-title">Student information</div>
+                <div className="form-group">
+                  <label htmlFor="confirmPassword">Confirm Password</label>
+                  <input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
+            )}
 
-              <div className="reg-grid">
-                <div className="reg-group">
-                  <label htmlFor="matricNo">Matric/Student ID</label>
+            {currentStep === 3 && (
+              <>
+                <h2>Academic Information</h2>
+                <p style={{ color: "#64748B", marginBottom: "1.5rem" }}>
+                  Provide your academic details
+                </p>
+
+                <div className="form-group">
+                  <label htmlFor="matricNo">Matriculation Number *</label>
                   <input
                     id="matricNo"
+                    type="text"
+                    placeholder="e.g., CSC/2021/001"
                     value={matricNo}
                     onChange={(e) => setMatricNo(e.target.value)}
-                    placeholder="e.g. SRMS/2026/001"
                     required
                   />
+                  <small style={{ color: "#64748B" }}>This will be verified against institutional records</small>
                 </div>
 
-                <div className="reg-group">
-                  <label htmlFor="level">Level</label>
-                  <input
-                    id="level"
-                    value={level}
-                    onChange={(e) => setLevel(e.target.value)}
-                    placeholder="e.g. 100 / 200 / 300 / 400"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="reg-grid">
-                <div className="reg-group">
-                <label htmlFor="facultyId">Faculty</label>
-                <select id="facultyId" value={facultyId as any} onChange={(e) => setFacultyId(e.target.value ? Number(e.target.value) : "") }>
-                  <option value="">-- Select faculty --</option>
-                  {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
-              </div>
-
-              <div className="reg-group">
-                <label htmlFor="departmentId">Department</label>
-                <select id="departmentId" value={departmentId as any} onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : "") }>
-                  <option value="">-- Select department --</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-
-              <div className="reg-group">
-                <label htmlFor="programId">Program</label>
-                <select id="programId" value={programId as any} onChange={(e) => setProgramId(e.target.value ? Number(e.target.value) : "") } required>
-                  <option value="">-- Select program --</option>
-                  {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-              </div>
-
-              <div className="reg-hint">If your institution provides program/department lists, these inputs should be replaced with selects that map to IDs.</div>
-            </>
-          )}
-
-          {/* Staff/Admin fields */}
-          {isStaff && (
-            <>
-              <div className="reg-section-title">Staff information</div>
-
-              <div className="reg-grid">
-                <div className="reg-group">
-                  <label htmlFor="staffId">Staff ID</label>
-                  <input
-                    id="staffId"
-                    value={staffId}
-                    onChange={(e) => setStaffId(e.target.value)}
-                    placeholder="e.g. STAFF-1029"
-                    required
-                  />
-                </div>
-
-                <div className="reg-group">
-                  <label htmlFor="departmentId">Department (enter ID)</label>
-                  <input
-                    id="departmentId"
-                    type="number"
-                    value={departmentId as any}
-                    onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : "")}
-                    placeholder="e.g. 2"
-                  />
-                </div>
-
-                <div className="reg-group">
-                  <label htmlFor="faculty">Faculty/School</label>
-                  <input
+                <div className="form-group">
+                  <label htmlFor="faculty">Faculty *</label>
+                  <select
                     id="faculty"
                     value={faculty}
                     onChange={(e) => setFaculty(e.target.value)}
-                    placeholder="e.g. Faculty of Science"
                     required
-                  />
+                  >
+                    <option value="">Select your faculty</option>
+                    {faculties.map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
 
-              <div className="reg-group">
-                <label htmlFor="accessCode">
-                  Access Code (optional)
-                </label>
-                <input
-                  id="accessCode"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  placeholder="Provided by admin (if required)"
-                />
-                <div className="reg-hint">
-                  If your institution wants to restrict staff registration, require an access code on the backend.
+                <div className="form-group">
+                  <label htmlFor="department">Department *</label>
+                  <select
+                    id="department"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    required
+                    disabled={!faculty}
+                  >
+                    <option value="">Select your department</option>
+                    {faculty && (departments as any)[faculty]?.map((d: string) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            </>
-          )}
 
-          {/* Admin */}
-          {role === 'admin' && (
-            <div className="reg-section-title">Administrator</div>
-          )}
+                <div className="form-group">
+                  <label htmlFor="program">Program *</label>
+                  <select
+                    id="program"
+                    value={program}
+                    onChange={(e) => setProgram(e.target.value)}
+                    required
+                  >
+                    <option value="">Select your program</option>
+                    {programs.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
 
-          <button className="reg-btn" type="submit" disabled={loading}>
-            {loading ? "Creating account..." : "Create Account"}
-          </button>
+                <div className="form-group">
+                  <label htmlFor="level">Academic Level *</label>
+                  <select
+                    id="level"
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value)}
+                    required
+                  >
+                    <option value="">Select your level</option>
+                    {levels.map(l => (
+                      <option key={l} value={l}>{l} Level</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
 
-          <div className="reg-links">
-            <span>
-              Already have an account? <Link to="/login">Login</Link>
-            </span>
-            <Link to="/" className="reg-back">
-              ← Back to home
-            </Link>
-          </div>
-        </form>
+            {currentStep === 4 && (
+              <>
+                <h2>Review Your Information</h2>
+                <p style={{ color: "#64748B", marginBottom: "1.5rem" }}>
+                  Please verify your details before submission
+                </p>
+
+                <div className="info-box" style={{ background: "#F0FDF4", borderLeft: "4px solid #22C55E" }}>
+                  <strong style={{ color: "#15803D" }}>✓ Review Complete</strong>
+                  <p style={{ marginTop: "0.5rem", color: "#15803D", fontSize: "0.875rem" }}>
+                    Check your information and click "Create Account" to proceed
+                  </p>
+                </div>
+
+                <div style={{ background: "#F8FAFC", padding: "1rem", borderRadius: "4px", marginBottom: "1rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", fontSize: "0.875rem" }}>
+                    <div>
+                      <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Full Name</p>
+                      <p style={{ fontWeight: 600 }}>{fullName}</p>
+                    </div>
+                    <div>
+                      <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Email</p>
+                      <p style={{ fontWeight: 600 }}>{email}</p>
+                    </div>
+                    <div>
+                      <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Matric Number</p>
+                      <p style={{ fontWeight: 600 }}>{matricNo}</p>
+                    </div>
+                    <div>
+                      <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Faculty</p>
+                      <p style={{ fontWeight: 600 }}>{faculty}</p>
+                    </div>
+                    <div>
+                      <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Department</p>
+                      <p style={{ fontWeight: 600 }}>{department}</p>
+                    </div>
+                    <div>
+                      <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Program</p>
+                      <p style={{ fontWeight: 600 }}>{program}</p>
+                    </div>
+                    <div>
+                      <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Level</p>
+                      <p style={{ fontWeight: 600 }}>{level} Level</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="info-box" style={{ background: "#FEF3C7", borderLeft: "4px solid #D97706" }}>
+                  <strong style={{ color: "#92400E" }}>⚠ Verification Required</strong>
+                  <p style={{ marginTop: "0.5rem", color: "#92400E", fontSize: "0.875rem" }}>
+                    Your enrollment will be verified against institutional records. You will receive an email notification once your account is activated.
+                  </p>
+                </div>
+              </>
+            )}
+
+            <div className="form-actions">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handlePreviousStep}
+                  disabled={loading}
+                >
+                  Previous
+                </button>
+              )}
+              {currentStep < 4 && (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleNextStep}
+                  disabled={loading}
+                >
+                  Next
+                </button>
+              )}
+              {currentStep === 4 && (
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={loading}
+                >
+                  {loading ? "Creating Account..." : "Create Account"}
+                </button>
+              )}
+            </div>
+
+            <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
+              <p style={{ fontSize: "0.875rem", color: "#64748B" }}>
+                Already have an account?{" "}
+                <Link to="/login" style={{ color: "#1E40AF", fontWeight: 600, textDecoration: "none" }}>
+                  Sign In
+                </Link>
+              </p>
+              <p style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
+                <Link to="/" style={{ color: "#1E40AF", fontWeight: 600, textDecoration: "none" }}>
+                  ← Back to Home
+                </Link>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
