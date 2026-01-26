@@ -14,7 +14,8 @@ interface User {
 }
 
 export default function UsersRoles() {
-  const [users, setUsers] = useState<User[]>([
+  const storedUsersRoles = (() => { try { return JSON.parse(localStorage.getItem('appUsers') || 'null') || null } catch { return null } })();
+  const [users, setUsers] = useState<User[]>(storedUsersRoles || [
     { id: '1', name: 'John Admin', email: 'john@uni.edu', role: 'Admin', department: 'IT', phone: '+1-111-1111', lastLogin: '2024-01-23', status: 'active' },
     { id: '2', name: 'Jane Dean', email: 'jane@uni.edu', role: 'Dean', department: 'Science', phone: '+1-111-1112', lastLogin: '2024-01-22', status: 'active' },
   ]);
@@ -36,10 +37,13 @@ export default function UsersRoles() {
       return;
     }
     if (editingId) {
-      setUsers(users.map(u => u.id === editingId ? { ...u, ...formData } : u));
-      setEditingId(null);
+      const updated = users.map(u => u.id === editingId ? { ...u, ...formData } : u);
+      setUsers(updated); setEditingId(null);
+      try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch(e){}
     } else {
-      setUsers([...users, { id: Date.now().toString(), ...formData, lastLogin: '', status: 'active' }]);
+      const updated = [...users, { id: Date.now().toString(), ...formData, lastLogin: '', status: 'active' }];
+      setUsers(updated);
+      try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch(e){}
     }
     setFormData({ name: '', email: '', role: 'Lecturer', department: '', phone: '' });
     setShowForm(false);
@@ -54,12 +58,14 @@ export default function UsersRoles() {
 
   const handleDelete = (id: string) => {
     if (confirm('Delete this user?')) {
-      setUsers(users.filter(u => u.id !== id));
+      const updated = users.filter(u => u.id !== id);
+      setUsers(updated); try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch(e){}
     }
   };
 
   const toggleStatus = (id: string) => {
-    setUsers(users.map(u => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
+    const updated = users.map(u => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u);
+    setUsers(updated); try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch(e){}
   };
 
   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()));

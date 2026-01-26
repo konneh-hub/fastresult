@@ -3,8 +3,9 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import App from "./App";
 
-// Load and apply saved theme on app startup
-const savedTheme = localStorage.getItem('adminTheme') || 'light';
+// Load and apply saved theme on app startup (per-user if available)
+const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+const savedTheme = localStorage.getItem(`userThemeKey_${currentUser.id}`) || 'light';
 const themeColors: any = {
   light: {
     backgroundColor: '#ffffff',

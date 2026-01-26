@@ -52,7 +52,8 @@ import Analytics from '../pages/lecturer/Analytics';
 import StudentDashboard from '../pages/student/Dashboard';
 import MyResults from '../pages/student/MyResults';
 import Transcript from '../pages/student/Transcript';
-import StudentProfile from '../pages/student/Profile';
+// Use the shared admin-style profile settings for student profile
+import StudentProfile from '../pages/ProfileSettings';
 import StudentSupport from '../pages/student/Support';
 import Notifications from '../pages/student/Notifications';
 

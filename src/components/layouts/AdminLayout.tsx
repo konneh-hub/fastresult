@@ -1,16 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import './EnhancedLayout.css';
 
 const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [viewAsUser, setViewAsUser] = useState(false);
   const [showSystemStatus, setShowSystemStatus] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [onlineUsersCount, setOnlineUsersCount] = useState(0);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   const menuSections = [
     {
       title: 'Main',
@@ -77,27 +82,131 @@ const AdminLayout: React.FC = () => {
       ],
     },
     {
-      title: 'User Settings',
+      title: 'Settings',
       items: [
-        { label: 'Profile Settings', path: '/admin/profile-settings', icon: '👤' },
+        { label: 'My Role & Responsibilities', path: '/my-role', icon: '👥' },
+        { label: 'Profile Settings', path: '/profile-settings', icon: '⚙️' },
       ],
     },
   ];
 
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('adminTheme');
     navigate('/login');
+  };
+
+  const confirmLogout = () => {
+    handleLogout();
   };
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
+  // Track online users - update every time user interacts or mounts
+  useEffect(() => {
+    const updateOnlineUsers = () => {
+      try {
+        const currentTime = Date.now();
+        const onlineUsers = JSON.parse(localStorage.getItem('onlineUsers') || '{}');
+
+        // Add/update current user with timestamp - DO NOT store PII (only role and lastActive)
+        const userId = currentUser.id || currentUser.email || 'unknown';
+        onlineUsers[userId] = {
+          role: currentUser.role || 'unknown',
+          lastActive: currentTime
+        };
+
+        // Remove users inactive for more than 30 minutes (1800000 ms)
+        const activeUsers = Object.fromEntries(
+          Object.entries(onlineUsers).filter(([_, user]: [string, any]) => {
+            return currentTime - user.lastActive < 1800000;
+          })
+        );
+
+        localStorage.setItem('onlineUsers', JSON.stringify(activeUsers));
+        setOnlineUsersCount(Object.keys(activeUsers).length);
+      } catch (err) {
+        console.error("Error updating online users:", err);
+      }
+    };
+
+    // Update on mount
+    updateOnlineUsers();
+
+    // Update every 30 seconds
+    const interval = setInterval(updateOnlineUsers, 30000);
+
+    // Update on user activity
+    const handleActivity = () => updateOnlineUsers();
+    window.addEventListener('click', handleActivity);
+    window.addEventListener('keypress', handleActivity);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('keypress', handleActivity);
+    };
+  }, [currentUser]);
+
+  // Search functionality - filter menu items based on search query
+  const filteredSearchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    
+    const query = searchQuery.toLowerCase();
+    const results: Array<{ label: string; path: string; icon: string; section: string }> = [];
+    
+    menuSections.forEach((section) => {
+      section.items.forEach((item) => {
+        if (item.label.toLowerCase().includes(query) || item.path.toLowerCase().includes(query)) {
+          results.push({
+            label: item.label,
+            path: item.path,
+            icon: item.icon,
+            section: section.title
+          });
+        }
+      });
+    });
+    
+    return results;
+  }, [searchQuery]);
+
+  const handleSearchResultClick = (path: string) => {
+    navigate(path);
+    setSearchQuery('');
+    setShowSearchResults(false);
+  };
+
   return (
     <div className="role-layout">
       {/* SIDEBAR */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">⚙️</div>
           <h2 className="sidebar-title">Admin Panel</h2>
+          <button
+            className="sidebar-collapse-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '20px',
+              padding: '4px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'rgba(255,255,255,0.7)',
+              marginLeft: 'auto',
+              transition: 'all 0.3s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'white')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+          >
+            {sidebarCollapsed ? '✕' : '☰'}
+          </button>
         </div>
 
         <nav className="sidebar-content">
@@ -112,7 +221,7 @@ const AdminLayout: React.FC = () => {
                       className={`sidebar-link ${location.pathname === item.path ? 'active' : ''}`}
                     >
                       <span className="sidebar-icon">{item.icon}</span>
-                      {item.label}
+                      <span className="sidebar-label">{item.label}</span>
                     </Link>
                   </li>
                 ))}
@@ -123,7 +232,7 @@ const AdminLayout: React.FC = () => {
 
         <div className="sidebar-footer">
           <button
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -158,23 +267,77 @@ const AdminLayout: React.FC = () => {
       <div className="main-container">
         {/* TOPBAR */}
         <div className="topbar">
-          {/* LEFT: BREADCRUMB */}
+          {/* LEFT: SEARCH & BREADCRUMB */}
           <div className="topbar-left">
-            <div className="breadcrumb">
-              Admin / <span style={{ fontWeight: 600, color: '#1e3c72' }}>Dashboard</span>
-            </div>
-          </div>
-
-          {/* CENTER: SEARCH */}
-          <div className="topbar-center">
-            <div className="search-box">
-              <span style={{ fontSize: '14px' }}>🔍</span>
-              <input
-                type="text"
-                placeholder="Search pages, users, settings..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="topbar-left-content">
+              <div className="search-box" style={{ position: 'relative' }}>
+                <span style={{ fontSize: '14px' }}>🔍</span>
+                <input
+                  type="text"
+                  placeholder="Search pages, users, settings..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowSearchResults(true)}
+                />
+                
+                {/* Search Results Dropdown */}
+                {showSearchResults && searchQuery.trim() && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: 'white',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    marginTop: '4px',
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    zIndex: 1000,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  }}>
+                    {filteredSearchResults.length > 0 ? (
+                      <>
+                        {filteredSearchResults.map((result, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSearchResultClick(result.path)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              width: '100%',
+                              padding: '10px 12px',
+                              border: 'none',
+                              background: idx % 2 === 0 ? '#f9f9f9' : 'white',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              fontSize: '0.9em',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#e8f4f8'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = idx % 2 === 0 ? '#f9f9f9' : 'white'}
+                          >
+                            <span style={{ fontSize: '1.1em' }}>{result.icon}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 500, color: '#333' }}>{result.label}</div>
+                              <div style={{ fontSize: '0.8em', color: '#999' }}>{result.section}</div>
+                            </div>
+                            <span style={{ fontSize: '0.8em', color: '#bbb' }}>→</span>
+                          </button>
+                        ))}
+                      </>
+                    ) : (
+                      <div style={{ padding: '12px', color: '#999', textAlign: 'center', fontSize: '0.9em' }}>
+                        No results found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="breadcrumb">
+                Admin / <span style={{ fontWeight: 600, color: '#1e3c72' }}>Dashboard</span>
+              </div>
             </div>
           </div>
 
@@ -201,6 +364,25 @@ const AdminLayout: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Online Users Counter */}
+            <button
+              className="topbar-button"
+              title={`${onlineUsersCount} users currently online`}
+              style={{
+                background: 'rgba(76,175,80,0.2)',
+                color: '#28a745',
+                fontWeight: 600,
+                fontSize: '0.9em',
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span style={{ fontSize: '1.1em' }}>🟢</span>
+              <span>{onlineUsersCount} Online</span>
+            </button>
 
             {/* System Status */}
             <div style={{ position: 'relative' }}>
@@ -275,7 +457,17 @@ const AdminLayout: React.FC = () => {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
                 <div className="profile-menu">
-                  <div className="profile-avatar">{currentUser.name?.charAt(0) || 'A'}</div>
+                  <div className="profile-avatar">
+                    {localStorage.getItem(`userProfileImage_${currentUser.id}`) ? (
+                      <img 
+                        src={localStorage.getItem(`userProfileImage_${currentUser.id}`) || ''} 
+                        alt="Profile" 
+                        style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      currentUser.name?.charAt(0) || 'A'
+                    )}
+                  </div>
                   <div className="profile-info">
                     <div className="profile-name">{currentUser.name || 'Admin'}</div>
                     <div className="profile-role">Administrator</div>
@@ -288,7 +480,7 @@ const AdminLayout: React.FC = () => {
                   <button
                     className="dropdown-item"
                     onClick={() => {
-                      navigate('/admin/profile-settings');
+                      navigate('/profile-settings');
                       setShowProfileMenu(false);
                     }}
                   >
@@ -327,6 +519,70 @@ const AdminLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* LOGOUT CONFIRMATION MODAL */}
+      {showLogoutConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            maxWidth: '400px',
+            textAlign: 'center',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
+          }}>
+            <h2 style={{ margin: '0 0 1rem 0', color: '#EF4444' }}>⚠️ Confirm Logout</h2>
+            <p style={{ margin: '0 0 2rem 0', color: '#666', fontSize: '1rem' }}>
+              Are you sure you want to logout? You will need to login again to access your account.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  padding: '0.75rem 2rem',
+                  background: '#E5E7EB',
+                  color: '#1F2937',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  flex: 1
+                }}
+              >
+                ❌ No, Cancel
+              </button>
+              <button
+                onClick={confirmLogout}
+                style={{
+                  padding: '0.75rem 2rem',
+                  background: '#EF4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  flex: 1
+                }}
+              >
+                ✅ Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

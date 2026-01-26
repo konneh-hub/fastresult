@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiCheckCircle, FiAlertCircle, FiClock } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -14,41 +14,31 @@ interface CourseApproval {
 }
 
 export default function DeanApprovals() {
-  const [approvals, setApprovals] = useState<CourseApproval[]>([
-    {
-      id: '1',
-      courseCode: 'CS301',
-      courseName: 'Data Structures & Algorithms',
-      department: 'Computer Science',
-      hodName: 'Prof. James Smith',
-      submittedDate: '2024-01-20',
-      status: 'pending',
-      students: 120,
-    },
-    {
-      id: '2',
-      courseCode: 'MATH401',
-      courseName: 'Advanced Calculus',
-      department: 'Mathematics',
-      hodName: 'Dr. Sarah Johnson',
-      submittedDate: '2024-01-18',
-      status: 'pending',
-      students: 85,
-    },
-    {
-      id: '3',
-      courseCode: 'PHYS201',
-      courseName: 'Quantum Mechanics',
-      department: 'Physics',
-      hodName: 'Prof. Ahmed Ali',
-      submittedDate: '2024-01-15',
-      status: 'approved',
-      students: 65,
-    },
-  ]);
-
+  const [approvals, setApprovals] = useState<CourseApproval[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [comments, setComments] = useState('');
+
+  useEffect(() => {
+    const fetchApprovals = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/dean/${user.id}/approvals`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setApprovals(data);
+        }
+      } catch (error) {
+        console.error('Error fetching approvals:', error);
+      }
+    };
+
+    fetchApprovals();
+  }, []);
 
   const handleApprove = (id: string) => {
     setApprovals(approvals.map(a => a.id === id ? { ...a, status: 'approved' } : a));

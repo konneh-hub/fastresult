@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiToggle2, FiSettings } from 'react-icons/fi';
 import './AdminPages.css';
 
@@ -12,12 +12,29 @@ interface Integration {
 }
 
 export default function Integrations() {
-  const [integrations, setIntegrations] = useState<Integration[]>([
-    { id: '1', name: 'Email Service', type: 'SMTP', status: 'active', lastSync: '2024-01-23 10:30 AM', description: 'Send system emails and notifications' },
-    { id: '2', name: 'SMS Gateway', type: 'Twilio', status: 'inactive', lastSync: '2024-01-20', description: 'Send SMS notifications to users' },
-    { id: '3', name: 'LMS Integration', type: 'Moodle', status: 'active', lastSync: '2024-01-23 09:15 AM', description: 'Sync with Learning Management System' },
-    { id: '4', name: 'Payment Gateway', type: 'Stripe', status: 'active', lastSync: '2024-01-23 11:00 AM', description: 'Process tuition and fee payments' },
-  ]);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+
+  useEffect(() => {
+    const fetchIntegrations = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/admin/${user.id}/integrations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setIntegrations(data);
+        }
+      } catch (error) {
+        console.error('Error fetching integrations:', error);
+      }
+    };
+
+    fetchIntegrations();
+  }, []);
 
   const toggleStatus = (id: string) => {
     setIntegrations(integrations.map(i => i.id === id ? { ...i, status: i.status === 'active' ? 'inactive' : 'active' } : i));

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiTrendingUp, FiAlertTriangle, FiCheckCircle, FiBell } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -19,37 +19,64 @@ interface Notification {
 }
 
 export default function StudentDashboard() {
-  const [academic] = useState<StudentAcademicData>({
-    currentCGPA: 3.68,
-    academicStanding: 'Good Standing',
-    completedCredits: 96,
+  const [academic, setAcademic] = useState<StudentAcademicData>({
+    currentCGPA: 0,
+    academicStanding: 'Loading...',
+    completedCredits: 0,
     totalCreditsRequired: 120,
-    semester: '2024/2025 - Semester 1',
+    semester: 'Loading...',
   });
 
-  const [notifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'Results Published',
-      message: 'Your semester results have been published. Check your My Results section.',
-      type: 'success',
-      date: '2024-01-23',
-    },
-    {
-      id: '2',
-      title: 'Transcript Available',
-      message: 'Your official transcript is now available for download.',
-      type: 'info',
-      date: '2024-01-22',
-    },
-    {
-      id: '3',
-      title: 'GPA Update',
-      message: 'Your CGPA for this semester is 3.68. Great performance!',
-      type: 'success',
-      date: '2024-01-20',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load real student data
+  useEffect(() => {
+    const loadStudentData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json'
+        };
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        // Fetch student results/academic data
+        try {
+          const resultsResponse = await fetch(`http://localhost:5000/api/results/${user.id}`, {
+            method: 'GET',
+            headers
+          });
+
+          if (resultsResponse.ok) {
+            const resultsData = await resultsResponse.json();
+            if (resultsData) {
+              setAcademic(prev => ({
+                ...prev,
+                currentCGPA: resultsData.cgpa || 0,
+                academicStanding: resultsData.standing || 'Active',
+                completedCredits: resultsData.completedCredits || 0,
+                semester: resultsData.currentSemester || '2024/2025 - Semester 1'
+              }));
+            }
+          }
+        } catch (err) {
+          console.log('Could not fetch academic data');
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error loading student data:', err);
+        setLoading(false);
+      }
+    };
+
+    loadStudentData();
+  }, []);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -71,26 +98,34 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Academic Overview */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        <div className="metric-card" style={{ borderLeftColor: '#4CAF50' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-            <div>
-              <p style={{ color: '#666', marginBottom: '0.5rem' }}>Current CGPA</p>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: 'bold', margin: '0.5rem 0' }}>
-                {academic.currentCGPA.toFixed(2)}
-              </h2>
-              <p style={{ color: '#999', fontSize: '0.85rem' }}>out of 4.0</p>
-            </div>
-            <FiTrendingUp size={32} color="#4CAF50" style={{ opacity: 0.7 }} />
-          </div>
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+          Loading your academic data...
         </div>
+      )}
 
-        <div className="metric-card" style={{ borderLeftColor: '#2196F3' }}>
-          <div>
-            <p style={{ color: '#666', marginBottom: '0.5rem' }}>Academic Standing</p>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '0.5rem 0', color: '#2196F3' }}>
-              {academic.academicStanding}
+      {!loading && (
+        <>
+          {/* Academic Overview */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div className="metric-card" style={{ borderLeftColor: '#4CAF50' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                <div>
+                  <p style={{ color: '#666', marginBottom: '0.5rem' }}>Current CGPA</p>
+                  <h2 style={{ fontSize: '2.5rem', fontWeight: 'bold', margin: '0.5rem 0' }}>
+                    {academic.currentCGPA.toFixed(2)}
+                  </h2>
+                  <p style={{ color: '#999', fontSize: '0.85rem' }}>out of 4.0</p>
+                </div>
+                <FiTrendingUp size={32} color="#4CAF50" style={{ opacity: 0.7 }} />
+              </div>
+            </div>
+
+            <div className="metric-card" style={{ borderLeftColor: '#2196F3' }}>
+              <div>
+                <p style={{ color: '#666', marginBottom: '0.5rem' }}>Academic Standing</p>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '0.5rem 0', color: '#2196F3' }}>
+                  {academic.academicStanding}
             </h2>
             <p style={{ color: '#999', fontSize: '0.85rem' }}>Maintaining good progress</p>
           </div>
@@ -132,29 +167,31 @@ export default function StudentDashboard() {
       </div>
 
       {/* Notifications */}
-      <div>
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>📢 Recent Notifications</h2>
-        <div style={{ display: 'grid', gap: '1rem' }}>
-          {notifications.map(notif => (
-            <div key={notif.id} className="status-card">
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div style={{ fontSize: '1.5rem', marginTop: '0.25rem' }}>
-                  {getNotificationIcon(notif.type)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h4 style={{ margin: '0 0 0.25rem 0' }}>{notif.title}</h4>
-                  <p style={{ color: '#666', fontSize: '0.95rem', margin: '0 0 0.5rem 0' }}>
-                    {notif.message}
-                  </p>
-                  <p style={{ color: '#999', fontSize: '0.8rem', margin: 0 }}>
-                    {notif.date}
-                  </p>
+      {notifications.length > 0 && (
+        <div>
+          <h2 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>📢 Recent Notifications</h2>
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            {notifications.map(notif => (
+              <div key={notif.id} className="status-card">
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <div style={{ fontSize: '1.5rem', marginTop: '0.25rem' }}>
+                    {getNotificationIcon(notif.type)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: '0 0 0.25rem 0' }}>{notif.title}</h4>
+                    <p style={{ color: '#666', fontSize: '0.95rem', margin: '0 0 0.5rem 0' }}>
+                      {notif.message}
+                    </p>
+                    <p style={{ color: '#999', fontSize: '0.8rem', margin: 0 }}>
+                      {notif.date}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Quick Actions */}
       <div style={{ marginTop: '2rem', padding: '1.5rem', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
@@ -166,6 +203,8 @@ export default function StudentDashboard() {
           <button className="btn-primary">Support</button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiFilter, FiDownload } from 'react-icons/fi';
 import '../admin/AdminPages.css';
+import { ACADEMIC_LEVELS } from '../../config/constants';
 
 interface Student {
   id: string;
@@ -62,7 +63,7 @@ export default function HODStudents() {
   ]);
 
   const programs = ['All Programs', 'BSc Computer Science', 'BSc Information Systems'];
-  const levels = ['All Levels', '100 Level', '200 Level', '300 Level', '400 Level'];
+  const levels = ['All Levels', ...ACADEMIC_LEVELS];
 
   const filteredStudents = students.filter(s => {
     const matchProgram = filterProgram === 'all' || s.program === filterProgram;

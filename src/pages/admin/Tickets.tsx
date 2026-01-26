@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiCheckCircle, FiClock, FiAlertCircle, FiSearch, FiChevronRight } from 'react-icons/fi';
 import './AdminPages.css';
 
@@ -14,17 +14,34 @@ interface Ticket {
 }
 
 export default function Tickets() {
-  const [tickets, setTickets] = useState<Ticket[]>([
-    { id: '1', subject: 'Cannot login to system', reporter: 'john@university.edu', issue: 'Account locked after password reset', priority: 'high', status: 'open', createdDate: '2024-01-23' },
-    { id: '2', subject: 'Missing grades', reporter: 'jane@university.edu', issue: 'Result submission not reflected', priority: 'critical', status: 'in-progress', createdDate: '2024-01-20', assignedTo: 'admin' },
-    { id: '3', subject: 'PDF generation error', reporter: 'mark@university.edu', issue: 'Cannot generate transcript PDF', priority: 'medium', status: 'resolved', createdDate: '2024-01-15' },
-  ]);
-
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
   const [resolution, setResolution] = useState('');
+
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/admin/${user.id}/tickets`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setTickets(data);
+        }
+      } catch (error) {
+        console.error('Error fetching tickets:', error);
+      }
+    };
+
+    fetchTickets();
+  }, []);
 
   const handleStatusChange = (id: string, newStatus: Ticket['status']) => {
     setTickets(tickets.map(t => t.id === id ? { ...t, status: newStatus } : t));

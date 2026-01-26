@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiAlertCircle, FiCheckCircle, FiClock, FiDownload } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -13,34 +13,29 @@ interface Course {
 }
 
 export default function LecturerDashboard() {
-  const [courses] = useState<Course[]>([
-    {
-      id: '1',
-      code: 'CS301',
-      name: 'Data Structures & Algorithms',
-      students: 120,
-      status: 'submitted',
-      submissionDate: '2024-01-20',
-      deadline: '2024-01-25',
-    },
-    {
-      id: '2',
-      code: 'CS302',
-      name: 'Web Development',
-      students: 95,
-      status: 'submitted',
-      submissionDate: '2024-01-22',
-      deadline: '2024-01-25',
-    },
-    {
-      id: '3',
-      code: 'CS401',
-      name: 'Machine Learning',
-      students: 60,
-      status: 'draft',
-      deadline: '2024-01-25',
-    },
-  ]);
+  const [courses, setCourses] = useState<Course[]>([]);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/lecturer/${user.id}/courses`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setCourses(data);
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+      }
+    };
+
+    fetchCourses();
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

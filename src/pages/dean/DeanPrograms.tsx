@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiPlus, FiEdit, FiTrash2, FiCheckCircle } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -14,38 +14,7 @@ interface Program {
 }
 
 export default function DeanPrograms() {
-  const [programs, setPrograms] = useState<Program[]>([
-    {
-      id: '1',
-      name: 'Computer Science',
-      degree: 'BSc',
-      duration: 4,
-      creditLimit: 120,
-      departments: ['Computer Science'],
-      status: 'active',
-      createdDate: '2022-01-15',
-    },
-    {
-      id: '2',
-      name: 'Mathematics',
-      degree: 'BSc',
-      duration: 4,
-      creditLimit: 120,
-      departments: ['Mathematics'],
-      status: 'active',
-      createdDate: '2022-01-15',
-    },
-    {
-      id: '3',
-      name: 'Applied Physics',
-      degree: 'MSc',
-      duration: 2,
-      creditLimit: 80,
-      departments: ['Physics'],
-      status: 'active',
-      createdDate: '2023-06-10',
-    },
-  ]);
+  const [programs, setPrograms] = useState<Program[]>([]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -55,6 +24,28 @@ export default function DeanPrograms() {
     duration: 4,
     creditLimit: 120,
   });
+
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/dean/${user.id}/programs`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPrograms(data);
+        }
+      } catch (error) {
+        console.error('Error fetching programs:', error);
+      }
+    };
+
+    fetchPrograms();
+  }, []);
 
   const handleAddProgram = () => {
     if (!formData.name) {

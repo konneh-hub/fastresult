@@ -12,7 +12,9 @@ interface UserAccount {
 }
 
 export default function UserAccounts() {
-  const [users, setUsers] = useState<UserAccount[]>([
+  // Initialize users from storage so admin-created users persist across pages
+  const stored = (() => { try { return JSON.parse(localStorage.getItem('appUsers') || 'null') || null } catch { return null } })();
+  const [users, setUsers] = useState<UserAccount[]>(stored || [
     { id: '1', email: 'dean@university.edu', name: 'Dr. John Dean', role: 'Dean', status: 'active', createdDate: '2024-01-15' },
     { id: '2', email: 'lecturer@university.edu', name: 'Prof. Jane Lecturer', role: 'Lecturer', status: 'active', createdDate: '2024-02-20' },
   ]);
@@ -31,22 +33,28 @@ export default function UserAccounts() {
       setUsers(users.map(u => u.id === editingId ? { ...u, email: formData.email, name: formData.name, role: formData.role } : u));
       setEditingId(null);
     } else {
-      setUsers([...users, { id: Date.now().toString(), ...formData, status: 'active', createdDate: new Date().toISOString().split('T')[0] }]);
+      const newUser = { id: Date.now().toString(), ...formData, status: 'active', createdDate: new Date().toISOString().split('T')[0] };
+      const updated = [...users, newUser];
+      setUsers(updated);
+      try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch (e) { console.error(e); }
     }
     setFormData({ email: '', name: '', role: 'Lecturer' });
     setShowForm(false);
   };
 
   const handleLockAccount = (id: string) => {
-    setUsers(users.map(u => u.id === id ? { ...u, status: 'locked' } : u));
+    const updated = users.map(u => u.id === id ? { ...u, status: 'locked' } : u);
+    setUsers(updated); try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch(e){}
   };
 
   const handleUnlockAccount = (id: string) => {
-    setUsers(users.map(u => u.id === id ? { ...u, status: 'active' } : u));
+    const updated = users.map(u => u.id === id ? { ...u, status: 'active' } : u);
+    setUsers(updated); try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch(e){}
   };
 
   const handleDisable = (id: string) => {
-    setUsers(users.map(u => u.id === id ? { ...u, status: 'disabled' } : u));
+    const updated = users.map(u => u.id === id ? { ...u, status: 'disabled' } : u);
+    setUsers(updated); try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch(e){}
   };
 
   const handleResetPassword = (id: string) => {
@@ -56,7 +64,8 @@ export default function UserAccounts() {
 
   const handleDelete = (id: string) => {
     if (confirm('This will permanently delete the account. Continue?')) {
-      setUsers(users.filter(u => u.id !== id));
+      const updated = users.filter(u => u.id !== id);
+      setUsers(updated); try { localStorage.setItem('appUsers', JSON.stringify(updated)); } catch(e){}
     }
   };
 

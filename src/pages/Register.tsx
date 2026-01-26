@@ -15,11 +15,12 @@ export default function Register() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [matricNo, setMatricNo] = useState("");
+  const [studentId, setStudentId] = useState("");
   const [faculty, setFaculty] = useState("");
   const [department, setDepartment] = useState("");
   const [program, setProgram] = useState("");
   const [level, setLevel] = useState("");
+  const [duplicateError, setDuplicateError] = useState("");
 
   // Sample data for dropdowns
   const faculties = [
@@ -45,6 +46,7 @@ export default function Register() {
 
   const handleNextStep = () => {
     setError("");
+    setDuplicateError("");
     if (currentStep === 1) {
       if (!email || role !== "student") {
         setError("Only students can self-register. Staff accounts are created by administration.");
@@ -62,7 +64,10 @@ export default function Register() {
       }
       setCurrentStep(3);
     } else if (currentStep === 3) {
-      // Academic fields are optional - can be filled in later
+      if (!studentId || !faculty || !department) {
+        setError("Student ID, Faculty, and Department are required");
+        return;
+      }
       setCurrentStep(4);
     }
   };
@@ -77,13 +82,42 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setDuplicateError("");
     setLoading(true);
 
     try {
-      if (!email || !password || !fullName) {
+      if (!email || !password || !fullName || !studentId || !faculty || !department) {
         setError("Please complete all required fields");
         setLoading(false);
         return;
+      }
+
+      // Check for duplicate email
+      try {
+        const emailCheckResponse = await api.get(`/auth/check-email/${email}`);
+        if (emailCheckResponse.status === 200 && emailCheckResponse.data.exists) {
+          setDuplicateError("❌ Email already registered. Please use a different email.");
+          setLoading(false);
+          return;
+        }
+      } catch (err: any) {
+        if (err.response?.status !== 404) {
+          console.log("Email check info:", err.response?.data);
+        }
+      }
+
+      // Check for duplicate Student ID
+      try {
+        const studentIdCheckResponse = await api.get(`/auth/check-student-id/${studentId}`);
+        if (studentIdCheckResponse.status === 200 && studentIdCheckResponse.data.exists) {
+          setDuplicateError("❌ Student ID already registered. Please contact administration.");
+          setLoading(false);
+          return;
+        }
+      } catch (err: any) {
+        if (err.response?.status !== 404) {
+          console.log("Student ID check info:", err.response?.data);
+        }
       }
 
       // Build registration payload for student
@@ -93,9 +127,9 @@ export default function Register() {
         email,
         password,
         phone: phone || undefined,
-        matricNo: matricNo || undefined,
-        faculty: faculty || undefined,
-        department: department || undefined,
+        studentId: studentId,
+        faculty: faculty,
+        department: department,
         program: program || undefined,
         level: level || undefined
       };
@@ -262,17 +296,30 @@ export default function Register() {
                   Provide your academic details
                 </p>
 
+                {duplicateError && (
+                  <div style={{
+                    background: "#FEE2E2",
+                    color: "#991B1B",
+                    padding: "0.75rem",
+                    borderRadius: "4px",
+                    marginBottom: "1rem",
+                    fontSize: "0.875rem"
+                  }}>
+                    {duplicateError}
+                  </div>
+                )}
+
                 <div className="form-group">
-                  <label htmlFor="matricNo">Matriculation Number *</label>
+                  <label htmlFor="studentId">Student ID *</label>
                   <input
-                    id="matricNo"
+                    id="studentId"
                     type="text"
-                    placeholder="e.g., CSC/2021/001"
-                    value={matricNo}
-                    onChange={(e) => setMatricNo(e.target.value)}
+                    placeholder="e.g., STU/2024/0001"
+                    value={studentId}
+                    onChange={(e) => setStudentId(e.target.value)}
                     required
                   />
-                  <small style={{ color: "#64748B" }}>This will be verified against institutional records</small>
+                  <small style={{ color: "#64748B" }}>Your unique institutional student identifier. This cannot be duplicated.</small>
                 </div>
 
                 <div className="form-group">
@@ -304,15 +351,15 @@ export default function Register() {
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
+                  <small style={{ color: "#64748B" }}>You must select a faculty first, then choose your department under that faculty.</small>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="program">Program *</label>
+                  <label htmlFor="program">Program</label>
                   <select
                     id="program"
                     value={program}
                     onChange={(e) => setProgram(e.target.value)}
-                    required
                   >
                     <option value="">Select your program</option>
                     {programs.map(p => (
@@ -364,7 +411,7 @@ export default function Register() {
                     </div>
                     <div>
                       <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Matric Number</p>
-                      <p style={{ fontWeight: 600 }}>{matricNo}</p>
+                      <p style={{ fontWeight: 600 }}>{studentId}</p>
                     </div>
                     <div>
                       <p style={{ color: "#64748B", marginBottom: "0.25rem" }}>Faculty</p>

@@ -50,18 +50,25 @@ export default function AdminAccountManagement() {
 
         const data = await response.json();
         
+        // Log the data to see what's being returned
+        console.log("Backend users data:", data);
+        
         // Transform backend data to AccountRequest format
-        const transformedAccounts: AccountRequest[] = (data || []).map((user: any) => ({
-          id: user.id?.toString() || user.user_id?.toString(),
-          name: user.full_name || user.fullName || "Unknown",
-          role: (user.role || "lecturer").toLowerCase() as any,
-          email: user.email,
-          staffId: user.staff_id || user.staffId || "",
-          faculty: user.faculty,
-          department: user.department,
-          status: "approved",
-          requestDate: new Date(user.created_at || user.createdAt || Date.now()).toISOString().split("T")[0]
-        }));
+        const transformedAccounts: AccountRequest[] = (data || []).map((user: any) => {
+          const userRole = (user.role || user.user_role || "").toLowerCase().trim();
+          console.log("User:", user.name || user.full_name, "Role from backend:", userRole);
+          return {
+            id: user.id?.toString() || user.user_id?.toString(),
+            name: user.full_name || user.fullName || "Unknown",
+            role: userRole as any,
+            email: user.email,
+            staffId: user.staff_id || user.staffId || "",
+            faculty: user.faculty,
+            department: user.department,
+            status: "approved",
+            requestDate: new Date(user.created_at || user.createdAt || Date.now()).toISOString().split("T")[0]
+          };
+        });
 
         setAccounts(transformedAccounts);
         setLoading(false);
@@ -80,13 +87,22 @@ export default function AdminAccountManagement() {
   const [selectedAccount, setSelectedAccount] = useState<AccountRequest | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    role: "dean" | "hod" | "exam_officer" | "lecturer";
+    email: string;
+    staffId: string;
+    faculty: string;
+    department: string;
+    gender: string;
+  }>({
     name: "",
-    role: "dean" as const,
+    role: "dean",
     email: "",
     staffId: "",
     faculty: "",
-    department: ""
+    department: "",
+    gender: ""
   });
 
   const roles = [
@@ -136,21 +152,83 @@ export default function AdminAccountManagement() {
       const data = await response.json();
       
       // Transform backend data to AccountRequest format
-      const transformedAccounts: AccountRequest[] = (data || []).map((user: any) => ({
-        id: user.id?.toString() || user.user_id?.toString(),
-        name: user.full_name || user.fullName || "Unknown",
-        role: (user.role || "lecturer").toLowerCase() as any,
-        email: user.email,
-        staffId: user.staff_id || user.staffId || "",
-        faculty: user.faculty,
-        department: user.department,
-        status: "approved",
-        requestDate: new Date(user.created_at || user.createdAt || Date.now()).toISOString().split("T")[0]
-      }));
+      const transformedAccounts: AccountRequest[] = (data || []).map((user: any) => {
+        const userRole = (user.role || user.user_role || "").toLowerCase().trim();
+        return {
+          id: user.id?.toString() || user.user_id?.toString(),
+          name: user.full_name || user.fullName || "Unknown",
+          role: userRole as any,
+          email: user.email,
+          staffId: user.staff_id || user.staffId || "",
+          faculty: user.faculty,
+          department: user.department,
+          status: "approved",
+          requestDate: new Date(user.created_at || user.createdAt || Date.now()).toISOString().split("T")[0]
+        };
+      });
 
       setAccounts(transformedAccounts);
     } catch (err) {
       console.error("Error refreshing accounts:", err);
+    }
+  };
+
+  // Function to verify email doesn't exist in database
+  const verifyEmailNotExists = async (email: string): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`http://localhost:5000/api/users?email=${encodeURIComponent(email.toLowerCase())}`, {
+        method: "GET",
+        headers
+      });
+
+      if (!response.ok) {
+        return true; // If we can't verify, allow creation (backend will catch it)
+      }
+
+      const data = await response.json();
+      // If data array has items, email already exists
+      return Array.isArray(data) && data.length === 0;
+    } catch (err) {
+      console.error("Error verifying email:", err);
+      return true; // Allow if verification fails
+    }
+  };
+
+  const verifyStaffIdNotExists = async (staffId: string): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`http://localhost:5000/api/users?staffId=${encodeURIComponent(staffId.toLowerCase())}`, {
+        method: "GET",
+        headers
+      });
+
+      if (!response.ok) {
+        return true; // If we can't verify, allow creation (backend will catch it)
+      }
+
+      const data = await response.json();
+      // If data array has items, staffId already exists
+      return Array.isArray(data) && data.length === 0;
+    } catch (err) {
+      console.error("Error verifying staffId:", err);
+      return true; // Allow if verification fails
     }
   };
 
@@ -163,19 +241,71 @@ export default function AdminAccountManagement() {
     if (editingId) {
       setAccounts(accounts.map(a => a.id === editingId ? { ...a, ...formData, status: "pending" } : a));
       alert("Account updated successfully");
-      setFormData({ name: "", role: "dean", email: "", staffId: "", faculty: "", department: "" });
+      setFormData({ name: "", role: "dean", email: "", staffId: "", gender: "", faculty: "", department: "" });
       setShowForm(false);
       setEditingId(null);
       return;
     }
 
     try {
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        alert("❌ Please enter a valid email address.");
+        return;
+      }
+
+      // Refresh accounts list before checking to ensure we have latest data
+      await refreshAccounts();
+
+      // Check for duplicate email (frontend check against all accounts)
+      const emailExists = accounts.some(a => a.email.toLowerCase() === formData.email.toLowerCase());
+      if (emailExists) {
+        alert("❌ Email already exists in the system. Please use a different email.");
+        return;
+      }
+
+      // Double-check with backend to ensure email doesn't exist
+      const emailNotDuplicate = await verifyEmailNotExists(formData.email);
+      if (!emailNotDuplicate) {
+        alert("❌ This email is already registered in the database. Please use a different email.");
+        return;
+      }
+
+      // Check for duplicate Staff ID
+      const staffIdExists = accounts.some(a => a.staffId.toLowerCase() === formData.staffId.toLowerCase());
+      if (staffIdExists) {
+        alert("❌ Staff ID already exists. Please use a different Staff ID.");
+        return;
+      }
+
+      // Double-check with backend to ensure Staff ID doesn't exist
+      const staffIdNotDuplicate = await verifyStaffIdNotExists(formData.staffId);
+      if (!staffIdNotDuplicate) {
+        alert("❌ This Staff ID is already registered in the database. Please use a different Staff ID.");
+        return;
+      }
+
+      // Validate gender is selected
+      if (!formData.gender) {
+        alert("❌ Please select a gender.");
+        return;
+      }
+
+      // Validate that faculty and department are linked correctly
+      if ((formData.role === "dean" && !formData.faculty) || 
+          ((formData.role === "hod" || formData.role === "lecturer") && (!formData.department || !formData.faculty))) {
+        alert("❌ Please ensure faculty and department are properly selected for this role.");
+        return;
+      }
+
       // Prepare data for backend - map role names and add faculty/department
       const payload = {
         role: formData.role,
         fullName: formData.name,
-        email: formData.email,
-        staffId: formData.staffId,
+        email: formData.email.toLowerCase().trim(),
+        staffId: formData.staffId.trim(),
+        gender: formData.gender,
         faculty: formData.faculty || null,
         departmentId: formData.department || null
       };
@@ -192,32 +322,81 @@ export default function AdminAccountManagement() {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(`❌ Error creating account: ${error.message || "Unknown error"}`);
+        const errorMsg = error.message || error.error || "Unknown error";
+        
+        // Handle specific backend errors
+        if (errorMsg.toLowerCase().includes("email")) {
+          alert(`❌ This email is already registered. Please use a different email address.`);
+          return;
+        }
+        if (errorMsg.toLowerCase().includes("staff")) {
+          alert(`❌ This Staff ID is already in use. Please use a different Staff ID.`);
+          return;
+        }
+        
+        alert(`❌ Error creating account: ${errorMsg}`);
         return;
       }
 
       const result = await response.json();
 
-      // Refresh accounts from backend to get the latest list
+      // Create new account object from form data
+      const newAccount: AccountRequest = {
+        id: result.id || result.userId || String(Date.now()),
+        name: formData.name,
+        role: formData.role,
+        email: formData.email.toLowerCase().trim(),
+        staffId: formData.staffId.trim(),
+        faculty: formData.faculty,
+        department: formData.department,
+        status: "approved",
+        requestDate: new Date().toISOString().split("T")[0]
+      };
+
+      // Immediately add to local state for instant UI update
+      setAccounts([...accounts, newAccount]);
+
+      // Also save to appUsers localStorage for UserAccounts page
+      try {
+        const appUsers = JSON.parse(localStorage.getItem('appUsers') || '[]');
+        const userAccountEntry = {
+          id: newAccount.id,
+          email: newAccount.email,
+          name: newAccount.name,
+          role: getRoleLabel(formData.role),
+          status: 'active',
+          createdDate: newAccount.requestDate
+        };
+        appUsers.push(userAccountEntry);
+        localStorage.setItem('appUsers', JSON.stringify(appUsers));
+      } catch (err) {
+        console.error("Error saving to appUsers:", err);
+      }
+
+      // Also refresh from backend to ensure consistency
       await refreshAccounts();
       
       // Show success message with default password and backend response
       alert(
-        `✅ Account Created Successfully in Database!\n\n` +
+        `✅ Account Created Successfully!\n\n` +
         `Name: ${formData.name}\n` +
         `Email: ${formData.email}\n` +
         `Role: ${getRoleLabel(formData.role)}\n` +
-        `Staff ID: ${formData.staffId}\n\n` +
-        `📧 Default Login Credentials:\n` +
+        `Staff ID: ${formData.staffId}\n` +
+        `${formData.faculty ? `Faculty: ${formData.faculty}\n` : ""}` +
+        `${formData.department ? `Department: ${formData.department}\n` : ""}\n` +
+        `🔑 LOGIN CREDENTIALS:\n` +
         `Email: ${formData.email}\n` +
         `Password: User123@Pass\n\n` +
-        `✅ Account is ACTIVE and ready to use immediately\n` +
-        `⚠️ User should change password after first login\n` +
-        `Share these credentials with the user.`
+        `✅ STATUS: ACTIVE AND READY TO LOGIN\n` +
+        `• Email verification is complete\n` +
+        `• User can login immediately\n` +
+        `• Password can be changed after login\n\n` +
+        `📧 Share these credentials with the user.`
       );
 
       // Reset form
-      setFormData({ name: "", role: "dean", email: "", staffId: "", faculty: "", department: "" });
+      setFormData({ name: "", role: "dean", email: "", staffId: "", gender: "", faculty: "", department: "" });
       setShowForm(false);
       setEditingId(null);
     } catch (err) {
@@ -263,7 +442,8 @@ export default function AdminAccountManagement() {
   };
 
   const getRoleLabel = (role: string) => {
-    return roles.find(r => r.value === role)?.label || role;
+    if (!role) return "No Role";
+    return roles.find(r => r.value === role)?.label || role.charAt(0).toUpperCase() + role.slice(1);
   };
 
   return (
@@ -395,21 +575,54 @@ export default function AdminAccountManagement() {
               />
             </div>
 
-            <div style={{ marginBottom: "1rem", padding: "1rem", backgroundColor: "#F0F9FF", border: "1px solid #0EA5E9", borderRadius: "4px" }}>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600, color: "#0369A1" }}>🔐 Default Password</label>
-              <div style={{ padding: "0.75rem", backgroundColor: "#FFF", borderRadius: "4px", fontFamily: "monospace", fontSize: "1rem", border: "1px solid #0EA5E9", color: "#0369A1" }}>
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Gender *</label>
+              <select
+                value={formData.gender}
+                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: "4px",
+                  fontSize: "1rem",
+                  boxSizing: "border-box"
+                }}
+              >
+                <option value="">Select Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "1rem", padding: "1rem", backgroundColor: "#DCFCE7", border: "2px solid #22C55E", borderRadius: "4px" }}>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600, color: "#16A34A" }}>🔐 Account Login Password (Active)</label>
+              <div style={{ padding: "0.75rem", backgroundColor: "#FFF", borderRadius: "4px", fontFamily: "monospace", fontSize: "1rem", border: "1px solid #22C55E", color: "#16A34A", fontWeight: 600 }}>
                 User123@Pass
               </div>
-              <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.875rem", color: "#0369A1" }}>
-                ✓ User will receive this password and can change it after first login
-              </p>
+              <div style={{ margin: "0.75rem 0 0 0", padding: "0.75rem", backgroundColor: "#F0FDF4", borderRadius: "4px", border: "1px solid #22C55E" }}>
+                <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.875rem", color: "#16A34A", fontWeight: 600 }}>
+                  ✅ Account is ACTIVE and ready for login immediately
+                </p>
+                <p style={{ margin: "0.25rem 0", fontSize: "0.75rem", color: "#16A34A" }}>
+                  • User can login with email and this password right away
+                </p>
+                <p style={{ margin: "0.25rem 0", fontSize: "0.75rem", color: "#16A34A" }}>
+                  • Email verification is automatically completed
+                </p>
+                <p style={{ margin: "0.25rem 0", fontSize: "0.75rem", color: "#16A34A" }}>
+                  • User can change password after login in dashboard settings
+                </p>
+              </div>
             </div>
 
             <div style={{ marginBottom: "1rem" }}>
               <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Role *</label>
               <select
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as "dean" | "hod" | "exam_officer" | "lecturer" })}
                 style={{
                   width: "100%",
                   padding: "0.75rem",
@@ -449,21 +662,43 @@ export default function AdminAccountManagement() {
             )}
 
             {(formData.role === "hod" || formData.role === "lecturer") && (
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Department</label>
-                <select
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    border: "1px solid #E2E8F0",
-                    borderRadius: "4px",
-                    fontSize: "1rem",
-                    boxSizing: "border-box"
-                  }}
-                >
-                  <option value="">Select Department</option>
+              <>
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Faculty</label>
+                  <select
+                    value={formData.faculty}
+                    onChange={(e) => setFormData({ ...formData, faculty: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: "4px",
+                      fontSize: "1rem",
+                      boxSizing: "border-box"
+                    }}
+                  >
+                    <option value="">Select Faculty</option>
+                    {faculties.map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: "1rem" }}>
+                  <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Department</label>
+                  <select
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: "4px",
+                      fontSize: "1rem",
+                      boxSizing: "border-box"
+                    }}
+                  >
+                    <option value="">Select Department</option>
                   {Object.entries(departments).flatMap(([_, depts]) =>
                     (depts as string[]).map(d => (
                       <option key={d} value={d}>{d}</option>
@@ -471,11 +706,13 @@ export default function AdminAccountManagement() {
                   )}
                 </select>
               </div>
+              </>
             )}
 
             <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
               <button
                 onClick={() => {
+                  setFormData({ name: "", role: "dean", email: "", staffId: "", gender: "", faculty: "", department: "" });
                   setShowForm(false);
                   setEditingId(null);
                 }}

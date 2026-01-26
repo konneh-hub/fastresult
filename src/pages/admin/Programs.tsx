@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
 import './AdminPages.css';
+import { PROGRAM_TYPES } from '../../config/constants';
 
 interface Program {
   id: string;
@@ -8,7 +9,7 @@ interface Program {
   code: string;
   faculty: string;
   duration: string;
-  type: 'Bachelor' | 'Master' | 'PhD' | 'Diploma';
+  type: 'Degree' | 'Diploma' | 'Masters' | 'Ordinary Diploma' | 'Certificate';
   semester: number;
   status: 'active' | 'inactive';
   students: number;
@@ -16,9 +17,9 @@ interface Program {
 
 export default function Programs() {
   const [programs, setPrograms] = useState<Program[]>([
-    { id: '1', name: 'Bachelor of Computer Science', code: 'BCS', faculty: 'Science', duration: '4 years', type: 'Bachelor', semester: 8, status: 'active', students: 240 },
-    { id: '2', name: 'Bachelor of Engineering', code: 'BEng', faculty: 'Engineering', duration: '4 years', type: 'Bachelor', semester: 8, status: 'active', students: 180 },
-    { id: '3', name: 'Master of Science in CS', code: 'MCS', faculty: 'Science', duration: '2 years', type: 'Master', semester: 4, status: 'active', students: 60 },
+    { id: '1', name: 'Bachelor of Computer Science', code: 'BCS', faculty: 'Science', duration: '4 years', type: 'Degree', semester: 8, status: 'active', students: 240 },
+    { id: '2', name: 'Bachelor of Engineering', code: 'BEng', faculty: 'Engineering', duration: '4 years', type: 'Degree', semester: 8, status: 'active', students: 180 },
+    { id: '3', name: 'Master of Science in CS', code: 'MCS', faculty: 'Science', duration: '2 years', type: 'Masters', semester: 4, status: 'active', students: 60 },
   ]);
 
   const [showForm, setShowForm] = useState(false);
@@ -28,7 +29,7 @@ export default function Programs() {
     code: '',
     faculty: '',
     duration: '',
-    type: 'Bachelor' as const,
+    type: 'Degree' as const,
     semester: 8,
   });
 
@@ -43,7 +44,7 @@ export default function Programs() {
     } else {
       setPrograms([...programs, { id: Date.now().toString(), ...formData, status: 'active', students: 0 }]);
     }
-    setFormData({ name: '', code: '', faculty: '', duration: '', type: 'Bachelor', semester: 8 });
+    setFormData({ name: '', code: '', faculty: '', duration: '', type: 'Degree', semester: 8 });
     setShowForm(false);
   };
 
@@ -71,7 +72,7 @@ export default function Programs() {
           <h1>📚 Academic Programs</h1>
           <p>Manage degree programs and academic offerings.</p>
         </div>
-        <button className="btn-primary" onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData({ name: '', code: '', faculty: '', duration: '', type: 'Bachelor', semester: 8 }); }}>
+        <button className="btn-primary" onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData({ name: '', code: '', faculty: '', duration: '', type: 'Degree', semester: 8 }); }}>
           <FiPlus /> Add Program
         </button>
       </div>
@@ -103,10 +104,9 @@ export default function Programs() {
             <div className="form-group">
               <label>Type</label>
               <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}>
-                <option value="Bachelor">Bachelor</option>
-                <option value="Master">Master</option>
-                <option value="PhD">PhD</option>
-                <option value="Diploma">Diploma</option>
+                {PROGRAM_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
               </select>
             </div>
             <div className="form-group">

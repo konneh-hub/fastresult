@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiFilter, FiDownload } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -14,34 +14,29 @@ interface Lecturer {
 
 export default function HODLecturers() {
   const [filterStatus, setFilterStatus] = useState('all');
+  const [lecturers, setLecturers] = useState<Lecturer[]>([]);
 
-  const [lecturers] = useState<Lecturer[]>([
-    {
-      id: '1',
-      name: 'Prof. James Smith',
-      email: 'james.smith@uni.edu',
-      qualification: 'PhD Computer Science',
-      courses: ['CS301', 'CS302', 'CS401'],
-      submissionStatus: 'submitted',
-      lastSubmission: '2024-01-20',
-    },
-    {
-      id: '2',
-      name: 'Dr. Jane Doe',
-      email: 'jane.doe@uni.edu',
-      qualification: 'MSc Information Systems',
-      courses: ['CS205', 'CS305'],
-      submissionStatus: 'pending',
-    },
-    {
-      id: '3',
-      name: 'Dr. Ahmed Hassan',
-      email: 'ahmed.hassan@uni.edu',
-      qualification: 'PhD Artificial Intelligence',
-      courses: ['CS401', 'CS402'],
-      submissionStatus: 'overdue',
-    },
-  ]);
+  useEffect(() => {
+    const fetchLecturers = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/hod/${user.id}/lecturers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setLecturers(data);
+        }
+      } catch (error) {
+        console.error('Error fetching lecturers:', error);
+      }
+    };
+
+    fetchLecturers();
+  }, []);
 
   const filteredLecturers = filterStatus === 'all'
     ? lecturers

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiDownload, FiFilter } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -24,98 +24,48 @@ interface Course {
 
 export default function StudentResults() {
   const [selectedSemester, setSelectedSemester] = useState('2024-1');
+  const [semesters, setSemesters] = useState<SemesterResult[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
 
-  const semesters: SemesterResult[] = [
-    {
-      semester: 'Semester 1',
-      year: '2024',
-      gpa: 3.68,
-      status: 'published',
-      courseCount: 6,
-      passedCourses: 6,
-    },
-    {
-      semester: 'Semester 2',
-      year: '2023',
-      gpa: 3.52,
-      status: 'published',
-      courseCount: 6,
-      passedCourses: 6,
-    },
-    {
-      semester: 'Semester 1',
-      year: '2023',
-      gpa: 3.45,
-      status: 'published',
-      courseCount: 6,
-      passedCourses: 6,
-    },
-  ];
+  useEffect(() => {
+    const fetchResults = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
 
-  const courses: Course[] = [
-    {
-      code: 'CS301',
-      name: 'Data Structures & Algorithms',
-      credit: 3,
-      ca: 18,
-      exam: 72,
-      total: 90,
-      grade: 'A',
-      gpaPoint: 4.0,
-    },
-    {
-      code: 'CS302',
-      name: 'Web Development',
-      credit: 3,
-      ca: 16,
-      exam: 68,
-      total: 84,
-      grade: 'A',
-      gpaPoint: 3.7,
-    },
-    {
-      code: 'CS303',
-      name: 'Database Management',
-      credit: 4,
-      ca: 17,
-      exam: 70,
-      total: 87,
-      grade: 'A',
-      gpaPoint: 3.7,
-    },
-    {
-      code: 'CS304',
-      name: 'Software Engineering',
-      credit: 3,
-      ca: 19,
-      exam: 75,
-      total: 94,
-      grade: 'A+',
-      gpaPoint: 4.0,
-    },
-    {
-      code: 'CS305',
-      name: 'Network Security',
-      credit: 3,
-      ca: 15,
-      exam: 65,
-      total: 80,
-      grade: 'B',
-      gpaPoint: 3.0,
-    },
-    {
-      code: 'GEN401',
-      name: 'General Education',
-      credit: 2,
-      ca: 19,
-      exam: 78,
-      total: 97,
-      grade: 'A+',
-      gpaPoint: 4.0,
-    },
-  ];
+        const response = await fetch(`http://localhost:5000/api/results/${user.id}/semesters`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSemesters(data.semesters || []);
+          setCourses(data.courses || []);
+          if (data.semesters && data.semesters.length > 0) {
+            setSelectedSemester(data.semesters[0].id || '2024-1');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching results:', error);
+      }
+    };
 
-  const currentSemester = semesters[0];
+    fetchResults();
+  }, []);
+
+  const currentSemester = semesters.length > 0 ? semesters[0] : null;
+
+  if (!currentSemester) {
+    return (
+      <div className="admin-page">
+        <div className="page-header">
+          <h1>📊 My Results</h1>
+          <p>View your semester results and grades</p>
+        </div>
+        <p style={{ textAlign: 'center', color: '#666' }}>Loading results...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-page">

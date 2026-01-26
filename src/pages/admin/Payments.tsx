@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiDownload } from 'react-icons/fi';
 import './AdminPages.css';
 
@@ -13,15 +13,31 @@ interface Payment {
 }
 
 export default function Payments() {
-  const [payments] = useState<Payment[]>([
-    { id: '1', studentName: 'Alice Johnson', amount: 5000, type: 'Tuition', date: '2024-01-23', status: 'completed', reference: 'PAY-001-2024' },
-    { id: '2', studentName: 'Bob Smith', amount: 2000, type: 'Hostel', date: '2024-01-22', status: 'completed', reference: 'PAY-002-2024' },
-    { id: '3', studentName: 'Carol Brown', amount: 3500, type: 'Library', date: '2024-01-21', status: 'pending', reference: 'PAY-003-2024' },
-    { id: '4', studentName: 'David Lee', amount: 1500, type: 'Lab Fee', date: '2024-01-20', status: 'failed', reference: 'PAY-004-2024' },
-  ]);
-
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending' | 'failed'>('all');
+
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/admin/${user.id}/payments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPayments(data);
+        }
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+      }
+    };
+
+    fetchPayments();
+  }, []);
 
   const filteredPayments = payments.filter(p => {
     const matchesSearch = p.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || p.reference.includes(searchTerm);

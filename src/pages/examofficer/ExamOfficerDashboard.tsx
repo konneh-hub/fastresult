@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiAlertTriangle, FiCheckCircle, FiClock, FiTrendingUp } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -18,43 +18,31 @@ interface ResultPipeline {
 }
 
 export default function ExamOfficerDashboard() {
-  const metrics: ExamMetric[] = [
-    {
-      label: 'Results to Publish',
-      value: '156',
-      change: '12 faculties',
-      icon: <FiClock size={28} />,
-      color: '#FF9800',
-    },
-    {
-      label: 'Departments Completed',
-      value: '18',
-      change: 'of 24 total',
-      icon: <FiCheckCircle size={28} />,
-      color: '#4CAF50',
-    },
-    {
-      label: 'Transcripts Generated',
-      value: '2,340',
-      change: '+125 today',
-      icon: <FiTrendingUp size={28} />,
-      color: '#2196F3',
-    },
-    {
-      label: 'Pending Approvals',
-      value: '6',
-      change: '3 critical',
-      icon: <FiAlertTriangle size={28} />,
-      color: '#F44336',
-    },
-  ];
+  const [metrics, setMetrics] = useState<ExamMetric[]>([]);
+  const [pipeline, setPipeline] = useState<ResultPipeline[]>([]);
 
-  const pipeline: ResultPipeline[] = [
-    { stage: 'Lecturer Submitted', status: 'completed', count: 156, percentage: 100 },
-    { stage: 'HOD Reviewed', status: 'completed', count: 148, percentage: 95 },
-    { stage: 'Dean Approved', status: 'in-progress', count: 142, percentage: 91 },
-    { stage: 'Ready to Publish', status: 'pending', count: 120, percentage: 77 },
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/examofficer/${user.id}/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setMetrics(data.metrics || []);
+          setPipeline(data.pipeline || []);
+        }
+      } catch (error) {
+        console.error('Error fetching exam officer dashboard:', error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   return (
     <div className="admin-page">

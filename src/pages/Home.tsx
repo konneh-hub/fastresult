@@ -18,9 +18,10 @@ export default function Home() {
             ☰
           </button>
           <div className={`navbar-links ${menuOpen ? "active" : ""}`}>
+            <Link to="/how-it-works" onClick={() => setMenuOpen(false)}>How It Works</Link>
+            <Link to="/roles" onClick={() => setMenuOpen(false)}>Roles</Link>
             <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
-            <a href="#roles" onClick={() => setMenuOpen(false)}>Institutions</a>
-            <a href="#about" onClick={() => setMenuOpen(false)}>About</a>
+            <Link to="/support" onClick={() => setMenuOpen(false)}>Support</Link>
             <Link to="/login" className="nav-login-btn">Login</Link>
           </div>
         </div>
@@ -142,7 +143,7 @@ export default function Home() {
             <button className="btn btn-primary" onClick={() => navigate("/login")}>
               Sign In
             </button>
-            <button className="btn btn-secondary" onClick={() => navigate("/register")}>
+            <button className="btn btn-primary" onClick={() => navigate("/register")}>
               Create Account
             </button>
           </div>
@@ -164,11 +165,19 @@ export default function Home() {
             </ul>
           </div>
           <div className="footer-section">
+            <h4>Support</h4>
+            <ul>
+              <li><Link to="/help">Help Center</Link></li>
+              <li><Link to="/faq">FAQ</Link></li>
+              <li><Link to="/contact">Contact Us</Link></li>
+            </ul>
+          </div>
+          <div className="footer-section">
             <h4>Legal</h4>
             <ul>
-              <li><a href="#">Privacy</a></li>
-              <li><a href="#">Terms</a></li>
-              <li><a href="#">Contact</a></li>
+              <li><Link to="/privacy">Privacy Policy</Link></li>
+              <li><Link to="/terms">Terms of Service</Link></li>
+              <li><Link to="/security">Security</Link></li>
             </ul>
           </div>
         </div>

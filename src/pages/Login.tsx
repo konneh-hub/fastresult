@@ -43,10 +43,13 @@ export default function Login() {
       if (response.data && response.data.token) {
         const { token, user } = response.data;
 
+        console.log("Login Response - User:", user);
+        console.log("Login Response - User Role:", user.role);
+
         // Store auth data
         localStorage.setItem("token", token);
+        localStorage.setItem("authToken", token);
         localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("role", user.role);
 
         if (rememberMe) {
           localStorage.setItem("rememberEmail", email);
@@ -54,26 +57,33 @@ export default function Login() {
           localStorage.removeItem("rememberEmail");
         }
 
-        // Mark user as verified (OTP only needed on registration)
-        const updatedUser = { ...user, verified: true, otp_verified_at: new Date().toISOString() };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-
         // Redirect to appropriate dashboard based on role
         const roleRoutes: { [key: string]: string } = {
-          admin: "/admin",
-          super_admin: "/admin",
-          dean: "/dean",
-          hod: "/hod",
-          exam_officer: "/exam-officer",
-          lecturer: "/lecturer",
-          student: "/student"
+          'admin': '/admin',
+          'super_admin': '/admin',
+          'super-admin': '/admin',
+          'dean': '/dean',
+          'faculty_dean': '/dean',
+          'faculty-dean': '/dean',
+          'hod': '/hod',
+          'head_of_department': '/hod',
+          'head-of-department': '/hod',
+          'exam_officer': '/exam-officer',
+          'exam-officer': '/exam-officer',
+          'examofficer': '/exam-officer',
+          'lecturer': '/lecturer',
+          'student': '/student'
         };
 
-        const dashboardPath = roleRoutes[user.role] || "/dashboard";
+        const userRole = user.role?.toLowerCase() || 'student';
+        const normalizedRole = userRole.replace(/\s+/g, '_').replace(/-/g, '_');
+        const dashboardPath = roleRoutes[normalizedRole] || roleRoutes[userRole] || '/student';
 
-        setTimeout(() => {
-          navigate(dashboardPath);
-        }, 500);
+        console.log("User Role:", user.role);
+        console.log("Normalized Role:", normalizedRole);
+        console.log("Dashboard Path:", dashboardPath);
+
+        navigate(dashboardPath);
       }
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || "Login failed. Please try again.";
@@ -160,14 +170,14 @@ export default function Login() {
 
           <div className="login-footer">
             <p>
-              <a href="#">Forgot password?</a>
+              <Link to="/forgot-password">Forgot password?</Link>
             </p>
             <p>
-              Only students can self-register.{" "}
+              {" "}
               <Link to="/register">Create a student account</Link>
             </p>
             <p style={{ fontSize: "0.75rem", color: "#64748B" }}>
-              Staff accounts? Contact administration for account creation.
+              © {new Date().getFullYear()} FastResult. All rights reserved.
             </p>
             <p>
               <Link to="/">← Back to Home</Link>

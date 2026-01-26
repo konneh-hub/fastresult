@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiAlertTriangle, FiCheckCircle, FiClock, FiTrendingUp } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -20,64 +20,33 @@ interface CourseSubmission {
 }
 
 export default function HODDashboard() {
-  const [departmentName] = useState('Computer Science Department');
+  const [departmentName, setDepartmentName] = useState('');
+  const [metrics, setMetrics] = useState<DepartmentMetric[]>([]);
+  const [submissions, setSubmissions] = useState<CourseSubmission[]>([]);
 
-  const metrics: DepartmentMetric[] = [
-    {
-      label: 'Pass Rate',
-      value: '92%',
-      change: '+3% from last semester',
-      icon: <FiCheckCircle size={28} />,
-      color: '#4CAF50',
-    },
-    {
-      label: 'Average GPA',
-      value: '3.68',
-      change: '+0.25 points',
-      icon: <FiTrendingUp size={28} />,
-      color: '#2196F3',
-    },
-    {
-      label: 'Pending Submissions',
-      value: '3',
-      change: '2 overdue',
-      icon: <FiClock size={28} />,
-      color: '#FF9800',
-    },
-    {
-      label: 'Problem Areas',
-      value: '1',
-      change: 'Abnormal grading detected',
-      icon: <FiAlertTriangle size={28} />,
-      color: '#F44336',
-    },
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
 
-  const submissions: CourseSubmission[] = [
-    {
-      courseCode: 'CS301',
-      courseName: 'Data Structures',
-      lecturer: 'Dr. John Smith',
-      status: 'submitted',
-      students: 120,
-      submissionDate: '2024-01-20',
-    },
-    {
-      courseCode: 'CS302',
-      courseName: 'Web Development',
-      lecturer: 'Prof. Jane Doe',
-      status: 'submitted',
-      students: 95,
-      submissionDate: '2024-01-22',
-    },
-    {
-      courseCode: 'CS401',
-      courseName: 'Machine Learning',
-      lecturer: 'Dr. Ahmed Hassan',
-      status: 'pending',
-      students: 60,
-    },
-  ];
+        const response = await fetch(`http://localhost:5000/api/hod/${user.id}/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDepartmentName(data.departmentName || '');
+          setMetrics(data.metrics || []);
+          setSubmissions(data.submissions || []);
+        }
+      } catch (error) {
+        console.error('Error fetching HOD dashboard:', error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiDownload, FiFilter, FiBarChart2 } from 'react-icons/fi';
 import '../admin/AdminPages.css';
 
@@ -12,40 +12,43 @@ interface FacultyReport {
   bottomDept: string;
 }
 
+interface DepartmentData {
+  name: string;
+  passRate: number;
+  avgGPA: number;
+  students: number;
+}
+
 export default function DeanReports() {
   const [selectedPeriod, setSelectedPeriod] = useState('2024-1');
   const [reportType, setReportType] = useState('overview');
+  const [reports, setReports] = useState<{ [key: string]: FacultyReport }>({});
+  const [departmentData, setDepartmentData] = useState<DepartmentData[]>([]);
 
-  const reports: { [key: string]: FacultyReport } = {
-    '2024-1': {
-      period: 'Jan - Apr 2024',
-      passRate: 87.5,
-      failRate: 12.5,
-      avgGPA: 3.42,
-      totalStudents: 2450,
-      topDept: 'Computer Science (92%)',
-      bottomDept: 'Physics (76%)',
-    },
-    '2023-2': {
-      period: 'Sep - Dec 2023',
-      passRate: 85.2,
-      failRate: 14.8,
-      avgGPA: 3.35,
-      totalStudents: 2380,
-      topDept: 'Biology (89%)',
-      bottomDept: 'Chemistry (78%)',
-    },
-  };
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const token = localStorage.getItem('authToken');
+        if (!user.id || !token) return;
+
+        const response = await fetch(`http://localhost:5000/api/dean/${user.id}/reports`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setReports(data.reports || {});
+          setDepartmentData(data.departmentData || []);
+        }
+      } catch (error) {
+        console.error('Error fetching reports:', error);
+      }
+    };
+
+    fetchReports();
+  }, []);
 
   const currentReport = reports[selectedPeriod];
-
-  const departmentData = [
-    { name: 'Computer Science', passRate: 92, avgGPA: 3.68, students: 320 },
-    { name: 'Mathematics', passRate: 84, avgGPA: 3.25, students: 280 },
-    { name: 'Physics', passRate: 76, avgGPA: 3.01, students: 240 },
-    { name: 'Chemistry', passRate: 88, avgGPA: 3.42, students: 260 },
-    { name: 'Biology', passRate: 89, avgGPA: 3.45, students: 290 },
-  ];
 
   return (
     <div className="admin-page">
